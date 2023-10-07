@@ -1,1 +1,0 @@
-## Prediction on input images are saved here

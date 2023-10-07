@@ -17,16 +17,18 @@ from torchvision.ops import nms
 
 # Input folder with images to classify.
 # IMAGES_IN = r"D:\NLP 1\s2-ship-detection\inference_images"
-IMAGES_IN = r"D:\NLP 1\Sat_object_detection\inference_images"
+
+IMAGES_IN = r"inference_images"
+IMAGES_IN = r"debug_images"
 
 # Folder with classified images (.png).
-IMAGES_OUT = r"D:\NLP 1\Sat_object_detection\inference_predictions"
+IMAGES_OUT = r"inference_predictions"
 
 # CSV results file directory
-RESULTS_DIR = r"D:\NLP 1\Sat_object_detection\results.csv"
+RESULTS_DIR = r"results.csv"
 
 # Must be model for binary classification.
-MODEL_TO_USE = 'best_model.pth'
+MODEL_TO_USE = 'models/best_model.pth'
 # MODEL_TO_USE = 'best_model_epoch2.pth'
 
 # Model input size of images.
@@ -79,6 +81,7 @@ for r, d, f in walk(IMAGES_IN):
 
             idx += 1
 
+print(fn_images)
 rows = []
 
 for fn in fn_images:
@@ -99,7 +102,7 @@ for fn in fn_images:
     # Read the input image.
     image_in = Image.open(fn_in).convert("RGB")
     n_rows, n_cols = image_in.size
-
+    print(f"n_rows: {n_rows} ; n_cols: {n_cols}")
     # Init output image.
     image_out = np.empty((n_rows, n_cols, 3))
 

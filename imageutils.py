@@ -8,7 +8,7 @@ def draw_image_with_boxes(filename, image, boxes):
     """Draws an image with boxes of detected objects."""
 
     # plot the image
-    plt.figure()
+    plt.figure(figsize=(10,10))
     plt.imshow(image)
 
     # get the context for drawing boxes
@@ -32,7 +32,7 @@ def draw_image_with_boxes(filename, image, boxes):
     # Save the figure
     plt.xticks([])
     plt.yticks([])
-    plt.savefig(filename, dpi = 300)
+    plt.savefig(filename, dpi = 300, bbox_inches='tight')
     plt.close()
 
 def one_hot_encode(label, label_values):
