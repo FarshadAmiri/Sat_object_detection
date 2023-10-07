@@ -1,0 +1,127 @@
+filename,from,to,n_objs,ships_areas
+D:\NLP 1\Sat_object_detection\inference_images\011409565.jpg,time_from,time_to,1,['154.85']
+D:\NLP 1\Sat_object_detection\inference_images\012473874.jpg,time_from,time_to,2,|['1108.86', '134.85']|
+D:\NLP 1\Sat_object_detection\inference_images\01f13f599.jpg,time_from,time_to,2,|['20232.88', '1343.71']|
+D:\NLP 1\Sat_object_detection\inference_images\032610514.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\037367901.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\03a75a583.jpg,time_from,time_to,1,['281.62']
+D:\NLP 1\Sat_object_detection\inference_images\041409351.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\058358044.jpg,time_from,time_to,2,|['8002.78', '307.69']|
+D:\NLP 1\Sat_object_detection\inference_images\065080198.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\078464555.jpg,time_from,time_to,1,['382.77']
+D:\NLP 1\Sat_object_detection\inference_images\08229754b.jpg,time_from,time_to,2,|['4689.64', '704.62']|
+D:\NLP 1\Sat_object_detection\inference_images\084269309.jpg,time_from,time_to,2,|['5488.68', '270.98']|
+D:\NLP 1\Sat_object_detection\inference_images\0aba8fa6f.jpg,time_from,time_to,2,|['167.98', '150.20']|
+D:\NLP 1\Sat_object_detection\inference_images\0b7359c38.jpg,time_from,time_to,1,['24533.04']
+D:\NLP 1\Sat_object_detection\inference_images\0c0d90d8d.jpg,time_from,time_to,3,|['33066.53', '147.42', '153.09']|
+D:\NLP 1\Sat_object_detection\inference_images\0c24ec954.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\0e40b3a5b.jpg,time_from,time_to,8,|['1435.61', '175.14', '705.77', '124.98', '630.70', '166.80', '539.88', '148.19']|
+D:\NLP 1\Sat_object_detection\inference_images\0ec10921f.jpg,time_from,time_to,3,|['217.97', '971.11', '540.76']|
+D:\NLP 1\Sat_object_detection\inference_images\12572286c.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\14013864b.jpg,time_from,time_to,1,['173.78']
+D:\NLP 1\Sat_object_detection\inference_images\18609713e.jpg,time_from,time_to,1,['401.80']
+D:\NLP 1\Sat_object_detection\inference_images\1b5fd69bc.jpg,time_from,time_to,4,|['11394.14', '5599.33', '1349.88', '1324.44']|
+D:\NLP 1\Sat_object_detection\inference_images\1ca44d679.jpg,time_from,time_to,3,|['212.17', '170.16', '194.23']|
+D:\NLP 1\Sat_object_detection\inference_images\1d0f400ee.jpg,time_from,time_to,1,['10228.66']
+D:\NLP 1\Sat_object_detection\inference_images\26095039a.jpg,time_from,time_to,2,|['247.21', '3562.02']|
+D:\NLP 1\Sat_object_detection\inference_images\26823809a.jpg,time_from,time_to,1,['5586.58']
+D:\NLP 1\Sat_object_detection\inference_images\2bf540ab6.jpg,time_from,time_to,1,['10412.87']
+D:\NLP 1\Sat_object_detection\inference_images\2c65c3125.jpg,time_from,time_to,1,['5949.77']
+D:\NLP 1\Sat_object_detection\inference_images\2cb5d47a2.jpg,time_from,time_to,1,['426.89']
+D:\NLP 1\Sat_object_detection\inference_images\2d1a6f1d7.jpg,time_from,time_to,1,['28367.93']
+D:\NLP 1\Sat_object_detection\inference_images\2d1b074cb.jpg,time_from,time_to,6,|['5499.62', '4961.32', '4471.17', '1779.11', '217.44', '350.57']|
+D:\NLP 1\Sat_object_detection\inference_images\2ec80a085.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\2f444438d.jpg,time_from,time_to,1,['4845.84']
+D:\NLP 1\Sat_object_detection\inference_images\31745469d.jpg,time_from,time_to,1,['250.40']
+D:\NLP 1\Sat_object_detection\inference_images\33925893c.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\34899620c.jpg,time_from,time_to,1,['467.91']
+D:\NLP 1\Sat_object_detection\inference_images\38168248b.jpg,time_from,time_to,1,['4219.15']
+D:\NLP 1\Sat_object_detection\inference_images\38237658a.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\38988163c.jpg,time_from,time_to,1,['28028.60']
+D:\NLP 1\Sat_object_detection\inference_images\3b0d1d4b2.jpg,time_from,time_to,1,['314.75']
+D:\NLP 1\Sat_object_detection\inference_images\3b1539a5d.jpg,time_from,time_to,1,['11529.90']
+D:\NLP 1\Sat_object_detection\inference_images\3b1554d64.jpg,time_from,time_to,1,['23370.01']
+D:\NLP 1\Sat_object_detection\inference_images\3b3ed2440.jpg,time_from,time_to,1,['21260.21']
+D:\NLP 1\Sat_object_detection\inference_images\42648574d.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\43347542c.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\44071141e.jpg,time_from,time_to,1,['276.99']
+D:\NLP 1\Sat_object_detection\inference_images\44175789d.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\44432557e.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\44584888f.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\44618001a.jpg,time_from,time_to,1,['17654.13']
+D:\NLP 1\Sat_object_detection\inference_images\46653100b.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\52297959b.jpg,time_from,time_to,1,['3724.02']
+D:\NLP 1\Sat_object_detection\inference_images\55236555e.jpg,time_from,time_to,1,['24853.25']
+D:\NLP 1\Sat_object_detection\inference_images\56990455f.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\57390298a.jpg,time_from,time_to,1,['3573.14']
+D:\NLP 1\Sat_object_detection\inference_images\58424055c.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\60295079a.jpg,time_from,time_to,2,|['159.85', '866.02']|
+D:\NLP 1\Sat_object_detection\inference_images\61642962f.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\63867551e.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\68153896e.jpg,time_from,time_to,1,['189.72']
+D:\NLP 1\Sat_object_detection\inference_images\68797457b.jpg,time_from,time_to,2,|['5097.86', '125.36']|
+D:\NLP 1\Sat_object_detection\inference_images\71488764f.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\71519557b.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\72173304c.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\7221420a5.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\7242578f3.jpg,time_from,time_to,1,['2642.97']
+D:\NLP 1\Sat_object_detection\inference_images\7272882ed.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\73083966b.jpg,time_from,time_to,1,['3453.14']
+D:\NLP 1\Sat_object_detection\inference_images\74121677d.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\7619476c2.jpg,time_from,time_to,1,['8779.63']
+D:\NLP 1\Sat_object_detection\inference_images\7787381d4.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\7934318f9.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\7937980e1.jpg,time_from,time_to,1,['21507.70']
+D:\NLP 1\Sat_object_detection\inference_images\8117518d5.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\8166432c8.jpg,time_from,time_to,1,['1913.86']
+D:\NLP 1\Sat_object_detection\inference_images\82354952a.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\8316753c8.jpg,time_from,time_to,6,|['328.18', '1067.93', '653.24', '300.50', '627.63', '254.64']|
+D:\NLP 1\Sat_object_detection\inference_images\83900351d.jpg,time_from,time_to,1,['9301.75']
+D:\NLP 1\Sat_object_detection\inference_images\84827267c.jpg,time_from,time_to,2,|['197.16', '129.66']|
+D:\NLP 1\Sat_object_detection\inference_images\85697245a.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\8591865ee.jpg,time_from,time_to,1,['14759.79']
+D:\NLP 1\Sat_object_detection\inference_images\8752531aa.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\87677250b.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\8814042e0.jpg,time_from,time_to,1,['9478.64']
+D:\NLP 1\Sat_object_detection\inference_images\8849749b2.jpg,time_from,time_to,1,['392.27']
+D:\NLP 1\Sat_object_detection\inference_images\90614385d.jpg,time_from,time_to,2,|['125.53', '126.49']|
+D:\NLP 1\Sat_object_detection\inference_images\91297604d.jpg,time_from,time_to,1,['1740.33']
+D:\NLP 1\Sat_object_detection\inference_images\9196798a9.jpg,time_from,time_to,1,['13516.11']
+D:\NLP 1\Sat_object_detection\inference_images\9279279fa.jpg,time_from,time_to,1,['382.15']
+D:\NLP 1\Sat_object_detection\inference_images\9454131fb.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\9842324d3.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\9915044cb.jpg,time_from,time_to,1,['430.31']
+D:\NLP 1\Sat_object_detection\inference_images\9996921bf.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\d075491da.jpg,time_from,time_to,2,|['839.38', '125.98']|
+D:\NLP 1\Sat_object_detection\inference_images\d1602e5a1.jpg,time_from,time_to,1,['189.91']
+D:\NLP 1\Sat_object_detection\inference_images\d30dc6757.jpg,time_from,time_to,2,|['1536.20', '144.99']|
+D:\NLP 1\Sat_object_detection\inference_images\d40740a01.jpg,time_from,time_to,1,['6624.14']
+D:\NLP 1\Sat_object_detection\inference_images\d45265381.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\d4837d743.jpg,time_from,time_to,1,['2239.30']
+D:\NLP 1\Sat_object_detection\inference_images\d90024c22.jpg,time_from,time_to,1,['270.25']
+D:\NLP 1\Sat_object_detection\inference_images\da3c51637.jpg,time_from,time_to,1,['1430.39']
+D:\NLP 1\Sat_object_detection\inference_images\da3e4cd65.jpg,time_from,time_to,2,|['311.61', '177.19']|
+D:\NLP 1\Sat_object_detection\inference_images\da3ee2f80.jpg,time_from,time_to,2,|['212.68', '3307.26']|
+D:\NLP 1\Sat_object_detection\inference_images\da6084af7.jpg,time_from,time_to,0,[]
+D:\NLP 1\Sat_object_detection\inference_images\dad047800.jpg,time_from,time_to,1,['5815.37']
+D:\NLP 1\Sat_object_detection\inference_images\db8c4b728.jpg,time_from,time_to,1,['406.12']
+D:\NLP 1\Sat_object_detection\inference_images\dbbe8bc63.jpg,time_from,time_to,1,['123.58']
+D:\NLP 1\Sat_object_detection\inference_images\dc007abd3.jpg,time_from,time_to,1,['1435.17']
+D:\NLP 1\Sat_object_detection\inference_images\dc0f2e22b.jpg,time_from,time_to,1,['309.45']
+D:\NLP 1\Sat_object_detection\inference_images\dc1f36757.jpg,time_from,time_to,1,['158.10']
+D:\NLP 1\Sat_object_detection\inference_images\dd4ffcb5c.jpg,time_from,time_to,3,|['5028.65', '5840.61', '1715.98']|
+D:\NLP 1\Sat_object_detection\inference_images\de7517d54.jpg,time_from,time_to,1,['3416.86']
+D:\NLP 1\Sat_object_detection\inference_images\df37cc1dc.jpg,time_from,time_to,2,|['179.99', '164.30']|
+D:\NLP 1\Sat_object_detection\inference_images\df648f2f4.jpg,time_from,time_to,1,['29372.08']
+D:\NLP 1\Sat_object_detection\inference_images\df82736fc.jpg,time_from,time_to,1,['219.47']
+D:\NLP 1\Sat_object_detection\inference_images\df9d741cf.jpg,time_from,time_to,1,['3763.81']
+D:\NLP 1\Sat_object_detection\inference_images\dfdfc012a.jpg,time_from,time_to,2,|['4758.78', '156.34']|
+D:\NLP 1\Sat_object_detection\inference_images\dfe1d30a7.jpg,time_from,time_to,2,|['5196.68', '210.06']|
+D:\NLP 1\Sat_object_detection\inference_images\dff7a31fc.jpg,time_from,time_to,1,['16698.05']
+D:\NLP 1\Sat_object_detection\inference_images\e0b6f0185.jpg,time_from,time_to,5,|['4186.82', '5331.24', '1102.84', '689.85', '346.05']|
+D:\NLP 1\Sat_object_detection\inference_images\e3adcb329.jpg,time_from,time_to,1,['8471.26']
+D:\NLP 1\Sat_object_detection\inference_images\e3da55562.jpg,time_from,time_to,2,|['5688.95', '269.03']|
+D:\NLP 1\Sat_object_detection\inference_images\e7dfaf709.jpg,time_from,time_to,1,['17781.35']
+D:\NLP 1\Sat_object_detection\inference_images\e7e24507a.jpg,time_from,time_to,4,|['5172.96', '1638.12', '1871.16', '6816.86']|
+D:\NLP 1\Sat_object_detection\inference_images\e7e2c2aa6.jpg,time_from,time_to,1,['3678.64']
+D:\NLP 1\Sat_object_detection\inference_images\e7f008fb4.jpg,time_from,time_to,2,|['865.76', '731.49']|
