@@ -3,6 +3,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from PIL import Image
+import cv2
+
 
 def draw_image_with_boxes(filename, image, boxes):
     """Draws an image with boxes of detected objects."""
@@ -35,6 +38,7 @@ def draw_image_with_boxes(filename, image, boxes):
     plt.savefig(filename, dpi = 300, bbox_inches='tight')
     plt.close()
 
+
 def one_hot_encode(label, label_values):
     """ Converts a segmentation image label array to one-hot format
     by replacing each pixel value with a vector of length num_classes.
@@ -49,6 +53,7 @@ def one_hot_encode(label, label_values):
 
     return semantic_map
 
+
 def reverse_one_hot(image):
     """Transforms a one-hot format to a 2D array with only 1 channel where each
     pixel value is the classified class key.
@@ -58,6 +63,7 @@ def reverse_one_hot(image):
 
     return x
 
+
 def colour_code_segmentation(image, label_values):
     """Given a 1-channel array of class keys assigns colour codes."""
 
@@ -65,6 +71,7 @@ def colour_code_segmentation(image, label_values):
     x = colour_codes[image.astype(int)]
 
     return x
+
 
 def save_fig(figname, **images):
     """Saves a list of images to disk."""
@@ -79,3 +86,37 @@ def save_fig(figname, **images):
         plt.imshow(image)
     plt.savefig(f'{figname}.png')
     plt.close()
+
+
+
+def resize_img_dir(image_path, height=320, width=320):
+    image = Image.open(image_path)
+    # image = Image.fromarray(np.uint8(image)).convert('RGB')
+    MAX_SIZE = (width, height)
+    image.thumbnail(MAX_SIZE)
+    image = np.asarray(image)
+    y_border = max(height - image.shape[0], 0)
+    x_border = max(width - image.shape[1], 0)
+    top = y_border // 2
+    bottom = y_border - top
+    left = x_border // 2
+    right = x_border - left
+    image = cv2.copyMakeBorder(image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(255,255,255))
+    return image
+
+
+
+def resize_img(image, height, width):
+    height, width = map(int, (height, width))
+    image = Image.fromarray(np.uint8(image)).convert('RGB')
+    MAX_SIZE = (width, height)
+    image.thumbnail(MAX_SIZE)
+    image = np.asarray(image)
+    y_border = max(height - image.shape[0], 0)
+    x_border = max(width - image.shape[1], 0)
+    top = y_border // 2
+    bottom = y_border - top
+    left = x_border // 2
+    right = x_border - left
+    image = cv2.copyMakeBorder(image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(255,255,255))
+    return image
