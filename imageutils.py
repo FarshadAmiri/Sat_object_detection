@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from PIL import Image
 import cv2
+import io
 
 
 def draw_image_with_boxes(filename, image, boxes):
@@ -120,3 +121,46 @@ def resize_img(image, height, width):
     right = x_border - left
     image = cv2.copyMakeBorder(image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(255,255,255))
     return image
+
+
+def annotated_image_numpy(image, boxes):
+    """Draws an image with boxes of detected objects."""
+
+    # plot the image
+    fig = plt.figure(figsize=(10,10))
+    fig.imshow(image)
+
+    # get the context for drawing boxes
+    ax = fig.gca()
+
+    # plot each box
+    for box in boxes:
+
+        # get coordinates
+        x1, y1, x2, y2 = box
+
+        # calculate width and height of the box
+        width, height = x2 - x1, y2 - y1
+
+        # create the shape
+        rect = Rectangle((x1, y1), width, height, fill = False, color = 'red')
+
+        # draw the box
+        ax.add_patch(rect)
+
+    # Save the figure
+    ax.xticks([])
+    ax.yticks([])
+
+
+    io_buf = io.BytesIO()
+    fig.savefig(io_buf, format='raw', dpi=300)
+    io_buf.seek(0)
+    img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
+                        newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
+    io_buf.close()
+
+    # plt.savefig(filename, dpi = 300, bbox_inches='tight')
+    plt.close()
+
+    return img_arr

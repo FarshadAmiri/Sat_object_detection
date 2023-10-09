@@ -34,7 +34,7 @@ MODEL_TO_USE = 'models/best_model.pth'
 IMG_DIM = 768
 
 #IoU Threshold
-iou_threshold = 0.08
+nms_iou_threshold = 0.08
 
 # Confidence threshold
 confidence_threshold = 0.85
@@ -135,29 +135,32 @@ for fn in fn_images:
         if  w != IMG_DIM or h != IMG_DIM:
             image = resize_img(image, IMG_DIM, IMG_DIM)
     
-        image = transform(image)  #I_added
+        image = transform(image)  
 
         # Apply the model to the image.
         x_tensor = image.to(device).unsqueeze(0)
 
         #x_tensor = torch.from_numpy(image).to(device).unsqueeze(0)
-        tgt_pred = model(x_tensor)
-        tgt_pred = tgt_pred[0]
+        prediction = model(x_tensor)
+        prediction = prediction[0]
 
         # Get the boxes and apply the cropping offset + Applying Non-max suppression
-        bboxes = tgt_pred['boxes'].detach().cpu()    #I_added
+        bboxes = prediction['boxes'].detach().cpu()    
+        scores= prediction['scores'].detach().cpu()   
         # print(bboxes)
-        scores= tgt_pred['scores'].detach().cpu()   #I_added
         # print(scores)
-    nms_result = nms(boxes=bboxes, scores=scores, iou_threshold=iou_threshold)
+        
+    # Perform Non-Max Suppression
+    nms_result = nms(boxes=bboxes, scores=scores, iou_threshold=nms_iou_threshold)
     bboxes = bboxes.numpy() 
     bboxes_nms = []
     bboxes_nms = np.array([bboxes[i] for i in nms_result])
-    # print(bboxes_nms)
-    # print(f"{fn_in} score:  {scores}")
-    acceptable_scores_mask = np.array([i > confidence_threshold for i in scores])
+    scores_nms = np.array([scores[i] for i in nms_result])
+
+    # remove bboxes with probability less than confidence_threshold
+    acceptable_scores_mask = np.array([i > confidence_threshold for i in scores_nms])
     bboxes_nms = bboxes_nms[acceptable_scores_mask]
-    scores = scores[acceptable_scores_mask]
+    scores_nms = scores_nms[acceptable_scores_mask]
     for bbox in bboxes_nms:
 
         # Threshold on area.
@@ -166,7 +169,7 @@ for fn in fn_images:
 
         # If object area is below threshold, add it to the object list.
         # if area >= 8 and area <= 180:   #I_commenetd
-        if area >= area_min and area<= area_max:   #I_added
+        if area >= area_min and area<= area_max:   
 
             bbox[0] += 0
             bbox[2] += 0
