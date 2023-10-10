@@ -18,7 +18,7 @@ from torchvision.ops import nms
 
 # ship_detection_standard function takes the model and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores in retrun.
-def ship_detection_standard(image, model, coord=None, model_input_dim=768, confidence_threshold=0.85, nms_iou_threshold=0.1, device='adaptive'):
+def ship_detection_standard(image, model, bbox_coord_wgs84=None, model_input_dim=768, confidence_threshold=0.85, nms_iou_threshold=0.1, device='adaptive'):
        
     # Set pytorch device.
     if device == 'adaptive':
@@ -63,6 +63,31 @@ def ship_detection_standard(image, model, coord=None, model_input_dim=768, confi
     bboxes_nms = bboxes_nms[acceptable_scores_mask]
     scores_nms = scores_nms[acceptable_scores_mask]
 
+    # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):
+    if bbox_coord_wgs84 != None:
+        if (bbox_coord_wgs84[0] > bbox_coord_wgs84[2]) or (bbox_coord_wgs84[1] > bbox_coord_wgs84[3]):
+            raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:
+                                         [left, bottom, right, top]
+                                         or in other words: 
+                                         [min Longitude , min Latitude , max Longitude , max Latitude]
+                                         or in other words: 
+                                         [West Longitude , South Latitude , East Longitude , North Latitude]""")
+        if any([(bbox_coord_wgs84[0] > 180), (bbox_coord_wgs84[2] > 180),
+                (bbox_coord_wgs84[0] < -180), (bbox_coord_wgs84[2] < -180)],
+                (bbox_coord_wgs84[1] > 90), (bbox_coord_wgs84[3] > 90),
+                (bbox_coord_wgs84[1] < -90), (bbox_coord_wgs84[3] < -90)):
+            raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and
+                             Longitude is between -180 and 180. Also, the following format is required:
+                             [left, bottom, right, top]
+                             or in other words:
+                             [min Longitude , min Latitude , max Longitude , max Latitude]
+                             or in other words: 
+                             [West Longitude , South Latitude , East Longitude , North Latitude]
+                             """)
+        # top_left_coord = [bbox_coord_wgs84]
+
+
+
     result = dict()
     result["n_obj"] = len(bboxes_nms)
     result["bboxes"] = bboxes_nms
@@ -73,8 +98,8 @@ def ship_detection_standard(image, model, coord=None, model_input_dim=768, confi
 
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
-def ship_detection_sahi(image, model_path='models/best_model.pth', coord=None, model_input_dim=768, sahi_confidence_threshold=0.9, sahi_adaptive_resizing=True,
-                        sahi_scale_down_factor=1, sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, output_scaled_down_image=True, device='adaptive'):
+def ship_detection_sahi(image, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9, sahi_scale_down_factor='adaptive',
+                        sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, output_scaled_down_image=True, device='adaptive'):
     
     # Set pytorch device.
     if device == 'adaptive':
@@ -85,7 +110,7 @@ def ship_detection_sahi(image, model_path='models/best_model.pth', coord=None, m
     w, h = image.size
     transform = Tv2.Compose([Tv2.ToImageTensor(), Tv2.ConvertImageDtype()])
 
-    if sahi_adaptive_resizing == True:
+    if sahi_scale_down_factor == 'adaptive':
         p = (w * h) // (model_input_dim * model_input_dim)
         if p > 10:
             sahi_scale_down_factor = round(math.sqrt(p / 20), 1)
@@ -114,6 +139,8 @@ def ship_detection_sahi(image, model_path='models/best_model.pth', coord=None, m
     bboxes_nms = np.array([bboxes[i] for i in nms_result])
     scores_nms = np.array([scores[i] for i in nms_result])
 
+
+
     result = dict()
     result["n_obj"] = len(bboxes_nms)
     result["bboxes"] = bboxes_nms
@@ -122,18 +149,51 @@ def ship_detection_sahi(image, model_path='models/best_model.pth', coord=None, m
     
     return result
 
+
 # if input is single image(PIL.Image.Image or np.ndarray) -> output n_obj , bbox , score , (lt_c , lg_c), length and
 # save annotated image where user specified.
 
 # if input is a folder -> output n_obj , bbox , score , (lt , lg), length and
 # and save annotated image and results.csv where user specified.
 # results.csv [image]
-def ship_detection():
+def ship_detection(image_or_dir, model_path='models/best_model.pth', sahi_mode='adaptive', bbox_coord_wgs84=None, model_input_dim=768, 
+                   sahi_confidence_threshold=0.9, sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2,
+                   nms_iou_threshold=0.1, output_scaled_down_image=True, device='adaptive'):
+    bulk_mode = False
+    if type(image_or_dir) == str:    # if an image's path or a directory containing images is passed into the function
+        image_ext = ['.jpg','.jpeg', '.png', '.jp2', '.jfif', '.pjpeg', '.webp', '.tiff', '.tif']
+        if any(ext in image_path[-6:] for ext in image_ext):
+            image = Image.open(image_or_dir)
+        else:
+            images_dir = image_or_dir
+            bulk_mode = True
+    elif type(image_or_dir) == np.ndarray:
+        image = Image.fromarray(np.uint8(image_or_dir)).convert('RGB')
+    elif type(image_or_dir) != Image.Image:
+        raise TypeError("image_or_dir should be whether a np.ndarray or PIL.Image.Image or a directory string")
+    else:
+        image = image_or_dir    # in case the image passed is a PIL.Image.Image object.
+    
+    if bulk_mode == False:
+        if sahi_mode:
+            result = ship_detection_sahi(image, model_path=model_path, coord=coord, model_input_dim=model_input_dim,
+                                sahi_confidence_threshold=sahi_confidence_threshold, sahi_scale_down_factor=sahi_scale_down_factor,
+                                sahi_overlap_ratio=sahi_overlap_ratio, nms_iou_threshold=nms_iou_threshold, 
+                                output_scaled_down_image=output_scaled_down_image, device=device)
+                                
 
 
+    
 
-    result = dict()
+
+    result = dict() 
     return result
+
+
+
+
+
+
 
 
 
@@ -158,8 +218,6 @@ def ship_detection_bulk():
     bbox_list = []
     area_list = []
     
-
-
 
 
 
