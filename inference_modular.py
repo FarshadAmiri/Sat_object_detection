@@ -11,6 +11,7 @@ import cv2
 from datasets import AirbusShipDetection
 from imageutils import draw_image_with_boxes
 from imageutils import resize_img_dir, resize_img
+from tools import distance
 from slicing_inference import sahi_slicing_inference
 from torchvision.transforms import v2 as Tv2
 from torchvision.ops import nms
@@ -18,82 +19,83 @@ from torchvision.ops import nms
 
 # ship_detection_standard function takes the model and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores in retrun.
-def ship_detection_standard(image, model, bbox_coord_wgs84=None, model_input_dim=768, confidence_threshold=0.85, nms_iou_threshold=0.1, device='adaptive'):
+# def ship_detection_standard(image, model, bbox_coord_wgs84=None, model_input_dim=768, confidence_threshold=0.85, nms_iou_threshold=0.1, device='adaptive'):
        
-    # Set pytorch device.
-    if device == 'adaptive':
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    else:
-        device = torch.device(device)
+#     # Set pytorch device.
+#     if device == 'adaptive':
+#         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#     else:
+#         device = torch.device(device)
 
-    w, h = image.size
-    transform = Tv2.Compose([Tv2.ToImageTensor(), Tv2.ConvertImageDtype()])
+#     w, h = image.size
+#     transform = Tv2.Compose([Tv2.ToImageTensor(), Tv2.ConvertImageDtype()])
 
-    if  w != model_input_dim or h != model_input_dim:
-        image = resize_img(image, model_input_dim, model_input_dim)
+#     if  w != model_input_dim or h != model_input_dim:
+#         image = resize_img(image, model_input_dim, model_input_dim)
     
-    image = transform(image)
+#     image = transform(image)
 
-    # Apply the model to the image.
-    x_tensor = image.to(device).unsqueeze(0)
+#     # Apply the model to the image.
+#     x_tensor = image.to(device).unsqueeze(0)
 
-    #x_tensor = torch.from_numpy(image).to(device).unsqueeze(0)
-    prediction = model(x_tensor)
-    prediction = prediction[0]
+#     #x_tensor = torch.from_numpy(image).to(device).unsqueeze(0)
+#     prediction = model(x_tensor)
+#     prediction = prediction[0]
 
-    # Get the boxes and apply the cropping offset + Applying Non-max suppression
-    bboxes = prediction['boxes'].detach()
-    scores= prediction['scores'].detach()
+#     # Get the boxes and apply the cropping offset + Applying Non-max suppression
+#     bboxes = prediction['boxes'].detach()
+#     scores= prediction['scores'].detach()
     
-    try:
-        bboxes = bboxes.cpu()
-        scores = scores.cpu()
-    except:
-        pass
+#     try:
+#         bboxes = bboxes.cpu()
+#         scores = scores.cpu()
+#     except:
+#         pass
 
-    # Perform Non-Max Suppression
-    nms_result = nms(boxes=bboxes, scores=scores, iou_threshold=nms_iou_threshold)
-    bboxes = bboxes.numpy() 
-    bboxes_nms = []
-    bboxes_nms = np.array([bboxes[i] for i in nms_result])
-    scores_nms = np.array([scores[i] for i in nms_result])
+#     # Perform Non-Max Suppression
+#     nms_result = nms(boxes=bboxes, scores=scores, iou_threshold=nms_iou_threshold)
+#     bboxes = bboxes.numpy() 
+#     bboxes_nms = []
+#     bboxes_nms = np.array([bboxes[i] for i in nms_result])
+#     scores_nms = np.array([scores[i] for i in nms_result])
 
-    # remove bboxes with probability less than confidence_threshold
-    acceptable_scores_mask = np.array([i > confidence_threshold for i in scores_nms])
-    bboxes_nms = bboxes_nms[acceptable_scores_mask]
-    scores_nms = scores_nms[acceptable_scores_mask]
+#     # remove bboxes with probability less than confidence_threshold
+#     acceptable_scores_mask = np.array([i > confidence_threshold for i in scores_nms])
+#     bboxes_nms = bboxes_nms[acceptable_scores_mask]
+#     scores_nms = scores_nms[acceptable_scores_mask]
 
-    # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):
-    if bbox_coord_wgs84 != None:
-        if (bbox_coord_wgs84[0] > bbox_coord_wgs84[2]) or (bbox_coord_wgs84[1] > bbox_coord_wgs84[3]):
-            raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:
-                                         [left, bottom, right, top]
-                                         or in other words: 
-                                         [min Longitude , min Latitude , max Longitude , max Latitude]
-                                         or in other words: 
-                                         [West Longitude , South Latitude , East Longitude , North Latitude]""")
-        if any([(bbox_coord_wgs84[0] > 180), (bbox_coord_wgs84[2] > 180),
-                (bbox_coord_wgs84[0] < -180), (bbox_coord_wgs84[2] < -180)],
-                (bbox_coord_wgs84[1] > 90), (bbox_coord_wgs84[3] > 90),
-                (bbox_coord_wgs84[1] < -90), (bbox_coord_wgs84[3] < -90)):
-            raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and
-                             Longitude is between -180 and 180. Also, the following format is required:
-                             [left, bottom, right, top]
-                             or in other words:
-                             [min Longitude , min Latitude , max Longitude , max Latitude]
-                             or in other words: 
-                             [West Longitude , South Latitude , East Longitude , North Latitude]
-                             """)
-        # top_left_coord = [bbox_coord_wgs84]
+    # # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):
+    # if bbox_coord_wgs84 != None:
+    #     if (bbox_coord_wgs84[0] > bbox_coord_wgs84[2]) or (bbox_coord_wgs84[1] > bbox_coord_wgs84[3]):
+    #         raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:
+    #                                      [left, bottom, right, top]
+    #                                      or in other words: 
+    #                                      [min Longitude , min Latitude , max Longitude , max Latitude]
+    #                                      or in other words: 
+    #                                      [West Longitude , South Latitude , East Longitude , North Latitude]""")
+    #     if any([(bbox_coord_wgs84[0] > 180), (bbox_coord_wgs84[2] > 180),
+    #             (bbox_coord_wgs84[0] < -180), (bbox_coord_wgs84[2] < -180)],
+    #             (bbox_coord_wgs84[1] > 90), (bbox_coord_wgs84[3] > 90),
+    #             (bbox_coord_wgs84[1] < -90), (bbox_coord_wgs84[3] < -90)):
+    #         raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and
+    #                          Longitude is between -180 and 180. Also, the following format is required:
+    #                          [left, bottom, right, top]
+    #                          or in other words:
+    #                          [min Longitude , min Latitude , max Longitude , max Latitude]
+    #                          or in other words: 
+    #                          [West Longitude , South Latitude , East Longitude , North Latitude]
+    #                          """)
+    #     # bbox_x1, bbox_y1, bbox_x2, bbox_y2 = bboxes_nms
+    #     # cx =
 
 
 
-    result = dict()
-    result["n_obj"] = len(bboxes_nms)
-    result["bboxes"] = bboxes_nms
-    result["scores"] = scores_nms
+#     result = dict()
+#     result["n_obj"] = len(bboxes_nms)
+#     result["bboxes"] = bboxes_nms
+    # result["scores"] = scores_nms
     
-    return result
+    # return result
 
 
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
@@ -130,7 +132,8 @@ def ship_detection_sahi(image, model_path='models/best_model.pth', bbox_coord_wg
     bboxes = sahi_result["bboxes"]
     scores = sahi_result["scores"]
     image = sahi_result["scaled_down_image"] 
-    image = transform(image) 
+    res_object = sahi_result["res_object"]    #remove before release
+    # image = transform(image) 
     
     # Perform Non-Max Suppression
     nms_result = nms(boxes=bboxes, scores=scores, iou_threshold=nms_iou_threshold)
@@ -139,13 +142,69 @@ def ship_detection_sahi(image, model_path='models/best_model.pth', bbox_coord_wg
     bboxes_nms = np.array([bboxes[i] for i in nms_result])
     scores_nms = np.array([scores[i] for i in nms_result])
 
-
-
+    # Output the result
     result = dict()
+    result["res_object"] = res_object
     result["n_obj"] = len(bboxes_nms)
     result["bboxes"] = bboxes_nms
     result["scores"] = scores_nms
     result["sahi_scaled_down_image"] = image
+
+    # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):
+    if bbox_coord_wgs84 != None:
+        lg1, lt1, lg2, lt2 = bbox_coord_wgs84
+        if (lg1 > lg2) or (lt1 > lt2):
+            raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:
+                                         [left, bottom, right, top]
+                                         or in other words: 
+                                         [min Longitude , min Latitude , max Longitude , max Latitude]
+                                         or in other words: 
+                                         [West Longitude , South Latitude , East Longitude , North Latitude]""")
+        if any([(lg1 > 180), (lg2 > 180),
+                (lg1 < -180), (lg2 < -180),
+                (lt1 > 90), (lt2 > 90),
+                (lt1 < -90), (lt2 < -90)]):
+            raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and
+                             Longitude is between -180 and 180. Also, the following format is required:
+                             [left, bottom, right, top]
+                             or in other words:
+                             [min Longitude , min Latitude , max Longitude , max Latitude]
+                             or in other words: 
+                             [West Longitude , South Latitude , East Longitude , North Latitude]
+                             """)
+        
+        w_resized, h_resized = image.size
+        dist_h = distance(lt1, lt2, lg1, lg1)
+        dist_w = distance(lt1, lt1, lg1, lg2)
+        ships_coord = []
+        ships_bbox_dimensions = []
+        ships_length = []
+        for bbox in bboxes_nms:
+            bbox_x1, bbox_y1, bbox_x2, bbox_y2 = bbox
+            
+            cx = (((bbox_x1 + bbox_x2) * (lg2 - lg1)) / (2 * w_resized)) + lg1
+            cx = round(cx, 12)
+            cy = (((bbox_y1 + bbox_y2) * (lt2 - lt1)) / (2 * h_resized)) + lt1
+            cy = round(cy, 12)
+            ships_coord.append((cx, cy))
+
+            h_ship_bbox = ((bbox_y2 - bbox_y1) * dist_h) / h_resized
+            h_ship_bbox = round(h_ship_bbox, 1)
+            w_ship_bbox = ((bbox_x2 - bbox_x1) * dist_w) / w_resized
+            w_ship_bbox = round(w_ship_bbox, 1)
+            ships_bbox_dimensions.append((max(h_ship_bbox, w_ship_bbox), min(h_ship_bbox, w_ship_bbox)))
+
+            # Ship's length estimation:
+            if (h_ship_bbox / w_ship_bbox) >= 2.5 or (w_ship_bbox / h_ship_bbox) >= 2.5:
+                length = max(h_ship_bbox, w_ship_bbox)
+            else:
+                length = round(math.sqrt((h_ship_bbox ** 2) + (w_ship_bbox ** 2)), 1)
+            ships_length.append(length)
+
+            result["ships_coord"] = ships_coord
+            result["ships_length"] = ships_length
+            result["ships_bbox_dimensions"] = ships_bbox_dimensions
+
     
     return result
 

@@ -47,7 +47,7 @@ def sahi_slicing_inference(image_or_dir, model_dir='models/best_model.pth', scal
     scores = torch.Tensor([prediction.object_prediction_list[i].score.value for i in range(len(prediction.object_prediction_list))])
     n_obj = len(scores)
 
-    result = {"n_obj": n_obj ,"bboxes": bboxes, "scores": scores ,"scaled_down_image_size": resized_image.size}
+    result = {"res_object": prediction,"n_obj": n_obj ,"bboxes": bboxes, "scores": scores ,"scaled_down_image_size": resized_image.size}
 
     if output_scaled_down_image == True:
         result["scaled_down_image"] = resized_image
