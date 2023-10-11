@@ -258,7 +258,7 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
     # for sc_factor in organized_images_by_scale_down_factor.keys():
     #     images_same_scfd = organized_images_by_scale_down_factor[sc_factor]
 
-    model = torch.load(model, map_location = device)
+    model = torch.load(model_path, map_location = device)
 
     model = AutoDetectionModel.from_pretrained(
     model_type='torchvision',
@@ -271,6 +271,7 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
     result = dict()
     for img in images_data:
         img_dir = path.join(images_dir, img[0])
+        print(f"Processing {img[0]}")
         sahi_result = sahi_slicing_inference(image_or_dir=img_dir, 
                                 model=model, 
                                 scale_down_factor=img[3], 
@@ -278,15 +279,29 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
                                 device=device, 
                                 confidence_threshold=sahi_confidence_threshold, 
                                 overlap_ratio=sahi_overlap_ratio,
-                                output_scaled_down_image=False
+                                output_scaled_down_image=True
                                     )
         bboxes = sahi_result["bboxes"]
+        print(bboxes)
         scores = sahi_result["scores"]
-        image = sahi_result["scaled_down_image"] 
+        scaled_down_image_size = sahi_result["scaled_down_image_size"]
+        sahi_scaled_down_image = sahi_result["scaled_down_image"]
         # res_object = sahi_result["res_object"]    #remove before release
         # image = transform(image) 
         
         # Perform Non-Max Suppression
+        if bboxes.dim() == 1:
+            result[img[0]] = dict()
+            # result[img[0]]["res_object"] = res_object    #remove before release
+            result[img[0]]["n_obj"] = 0
+            result[img[0]]["bboxes"] = bboxes
+            result[img[0]]["scores"] = scores
+            result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
+            result[img[0]]["ships_coord"] = []
+            result[img[0]]["ships_length"] = []
+            result[img[0]]["ships_bbox_dimensions"] = []
+            continue
+
         nms_result = nms(boxes=bboxes, scores=scores, iou_threshold=nms_iou_threshold)
         bboxes = bboxes.numpy() 
         bboxes_nms = []
@@ -299,11 +314,10 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
         result[img[0]]["n_obj"] = len(bboxes_nms)
         result[img[0]]["bboxes"] = bboxes_nms
         result[img[0]]["scores"] = scores_nms
-        result[img[0]]["sahi_scaled_down_image"] = image
+        result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
 
         # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):
-        if bbox_coord_wgs84 != None:
-            
+        if bbox_coord_wgs84.get(img[0]) != None:
             lg1, lt1, lg2, lt2 = bbox_coord_wgs84[img[0]]
             if (lg1 > lg2) or (lt1 > lt2):
                 raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:
@@ -325,7 +339,7 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
                                 [West Longitude , South Latitude , East Longitude , North Latitude]
                                 """)
             
-            w_resized, h_resized = image.size
+            w_resized, h_resized = scaled_down_image_size
             dist_h = distance(lt1, lt2, lg1, lg1)
             dist_w = distance(lt1, lt1, lg1, lg2)
             ships_coord = []
