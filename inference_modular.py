@@ -317,59 +317,65 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
         result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
 
         # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):
-        if bbox_coord_wgs84.get(img[0]) != None:
-            lg1, lt1, lg2, lt2 = bbox_coord_wgs84[img[0]]
-            if (lg1 > lg2) or (lt1 > lt2):
-                raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:
-                                            [left, bottom, right, top]
-                                            or in other words: 
-                                            [min Longitude , min Latitude , max Longitude , max Latitude]
-                                            or in other words: 
-                                            [West Longitude , South Latitude , East Longitude , North Latitude]""")
-            if any([(lg1 > 180), (lg2 > 180),
-                    (lg1 < -180), (lg2 < -180),
-                    (lt1 > 90), (lt2 > 90),
-                    (lt1 < -90), (lt2 < -90)]):
-                raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and
-                                Longitude is between -180 and 180. Also, the following format is required:
-                                [left, bottom, right, top]
-                                or in other words:
-                                [min Longitude , min Latitude , max Longitude , max Latitude]
-                                or in other words: 
-                                [West Longitude , South Latitude , East Longitude , North Latitude]
-                                """)
-            
-            w_resized, h_resized = scaled_down_image_size
-            dist_h = distance(lt1, lt2, lg1, lg1)
-            dist_w = distance(lt1, lt1, lg1, lg2)
-            ships_coord = []
-            ships_bbox_dimensions = []
-            ships_length = []
-            for bbox in bboxes_nms:
-                bbox_x1, bbox_y1, bbox_x2, bbox_y2 = bbox
+        if bbox_coord_wgs84 != None:
+            if bbox_coord_wgs84.get(img[0]) != None:
+                try:
+                    lg1, lt1, lg2, lt2 = bbox_coord_wgs84[img[0]]
+                except:
+                    raise ValueError(f"""bbox_coord_wgs84 should be a python dictionary containing keys equal to the images name and
+                                    values equals to wgs84 coordinations in a list which is as follows:
+                                    [West Longitude , South Latitude , East Longitude , North Latitude]""")
+                if (lg1 > lg2) or (lt1 > lt2):
+                    raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:
+                                                [left, bottom, right, top]
+                                                or in other words: 
+                                                [min Longitude , min Latitude , max Longitude , max Latitude]
+                                                or in other words: 
+                                                [West Longitude , South Latitude , East Longitude , North Latitude]""")
+                if any([(lg1 > 180), (lg2 > 180),
+                        (lg1 < -180), (lg2 < -180),
+                        (lt1 > 90), (lt2 > 90),
+                        (lt1 < -90), (lt2 < -90)]):
+                    raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and
+                                    Longitude is between -180 and 180. Also, the following format is required:
+                                    [left, bottom, right, top]
+                                    or in other words:
+                                    [min Longitude , min Latitude , max Longitude , max Latitude]
+                                    or in other words: 
+                                    [West Longitude , South Latitude , East Longitude , North Latitude]
+                                    """)
                 
-                cx = (((bbox_x1 + bbox_x2) * (lg2 - lg1)) / (2 * w_resized)) + lg1
-                cx = round(cx, 12)
-                cy = (((bbox_y1 + bbox_y2) * (lt2 - lt1)) / (2 * h_resized)) + lt1
-                cy = round(cy, 12)
-                ships_coord.append((cx, cy))
+                w_resized, h_resized = scaled_down_image_size
+                dist_h = distance(lt1, lt2, lg1, lg1)
+                dist_w = distance(lt1, lt1, lg1, lg2)
+                ships_coord = []
+                ships_bbox_dimensions = []
+                ships_length = []
+                for bbox in bboxes_nms:
+                    bbox_x1, bbox_y1, bbox_x2, bbox_y2 = bbox
+                    
+                    cx = (((bbox_x1 + bbox_x2) * (lg2 - lg1)) / (2 * w_resized)) + lg1
+                    cx = round(cx, 12)
+                    cy = (((bbox_y1 + bbox_y2) * (lt2 - lt1)) / (2 * h_resized)) + lt1
+                    cy = round(cy, 12)
+                    ships_coord.append((cx, cy))
 
-                h_ship_bbox = ((bbox_y2 - bbox_y1) * dist_h) / h_resized
-                h_ship_bbox = round(h_ship_bbox, 1)
-                w_ship_bbox = ((bbox_x2 - bbox_x1) * dist_w) / w_resized
-                w_ship_bbox = round(w_ship_bbox, 1)
-                ships_bbox_dimensions.append((max(h_ship_bbox, w_ship_bbox), min(h_ship_bbox, w_ship_bbox)))
+                    h_ship_bbox = ((bbox_y2 - bbox_y1) * dist_h) / h_resized
+                    h_ship_bbox = round(h_ship_bbox, 1)
+                    w_ship_bbox = ((bbox_x2 - bbox_x1) * dist_w) / w_resized
+                    w_ship_bbox = round(w_ship_bbox, 1)
+                    ships_bbox_dimensions.append((max(h_ship_bbox, w_ship_bbox), min(h_ship_bbox, w_ship_bbox)))
 
-                # Ship's length estimation:
-                if (h_ship_bbox / w_ship_bbox) >= 2.5 or (w_ship_bbox / h_ship_bbox) >= 2.5:
-                    length = max(h_ship_bbox, w_ship_bbox)
-                else:
-                    length = round(math.sqrt((h_ship_bbox ** 2) + (w_ship_bbox ** 2)), 1)
-                ships_length.append(length)
+                    # Ship's length estimation:
+                    if (h_ship_bbox / w_ship_bbox) >= 2.5 or (w_ship_bbox / h_ship_bbox) >= 2.5:
+                        length = max(h_ship_bbox, w_ship_bbox)
+                    else:
+                        length = round(math.sqrt((h_ship_bbox ** 2) + (w_ship_bbox ** 2)), 1)
+                    ships_length.append(length)
 
-                result[img[0]]["ships_coord"] = ships_coord
-                result[img[0]]["ships_length"] = ships_length
-                result[img[0]]["ships_bbox_dimensions"] = ships_bbox_dimensions
+                    result[img[0]]["ships_coord"] = ships_coord
+                    result[img[0]]["ships_length"] = ships_length
+                    result[img[0]]["ships_bbox_dimensions"] = ships_bbox_dimensions
     
     return result
 
