@@ -1,7 +1,7 @@
 from sahi.predict import get_prediction, get_sliced_prediction, predict
 from sahi import AutoDetectionModel
 from sahi.slicing import slice_image
-from imageutils import resize_img_dir, resize_img
+from imageutils import resize_img
 from PIL import Image
 import numpy as np
 import torch

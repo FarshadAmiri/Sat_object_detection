@@ -90,7 +90,7 @@ def save_fig(figname, **images):
 
 
 
-def resize_img_dir(image_path, height=320, width=320):
+def resize_img_dir_padding(image_path, height=320, width=320):
     image = Image.open(image_path)
     # image = Image.fromarray(np.uint8(image)).convert('RGB')
     MAX_SIZE = (width, height)
@@ -107,7 +107,7 @@ def resize_img_dir(image_path, height=320, width=320):
 
 
 
-def resize_img(image, height, width):
+def resize_img_padding(image, height, width):
     height, width = map(int, (height, width))
     image = Image.fromarray(np.uint8(image)).convert('RGB')
     MAX_SIZE = (width, height)
@@ -120,6 +120,15 @@ def resize_img(image, height, width):
     left = x_border // 2
     right = x_border - left
     image = cv2.copyMakeBorder(image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(255,255,255))
+    return image
+
+
+def resize_img(image, height, width):
+    height, width = map(int, (height, width))
+    image = Image.fromarray(np.uint8(image)).convert('RGB')
+    MAX_SIZE = (width, height)
+    image.thumbnail(MAX_SIZE)
+    image = np.asarray(image)
     return image
 
 
