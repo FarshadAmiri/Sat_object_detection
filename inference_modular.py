@@ -9,9 +9,8 @@ import supervision as sv
 import cv2
 
 from datasets import AirbusShipDetection
-from imageutils import draw_image_with_boxes
-from imageutils import  resize_img
-from tools import distance
+from imageutils import draw_image_with_boxes, draw_bboxes, resize_img
+from tools import haversine_distance, shamsi_date_time
 from slicing_inference import sahi_slicing_inference
 from torchvision.transforms import v2 as Tv2
 from torchvision.ops import nms
@@ -128,7 +127,6 @@ def ship_detection(image, model_path='models/best_model.pth', bbox_coord_wgs84=N
                             device=device, 
                             confidence_threshold=sahi_confidence_threshold, 
                             overlap_ratio=sahi_overlap_ratio,
-                            output_scaled_down_image=output_scaled_down_image,
                             output_scaled_down_image=True,
                             )
     bboxes = sahi_result["bboxes"]
@@ -154,43 +152,43 @@ def ship_detection(image, model_path='models/best_model.pth', bbox_coord_wgs84=N
     # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):
     if bbox_coord_wgs84 != None:
         try:
-            lg1, lt1, lg2, lt2 = bbox_coord_wgs84
+            lon1, lat1, lon2, lat2 = bbox_coord_wgs84
         except:
             raise ValueError(f"""bbox_coord_wgs84 should be a python dictionary containing keys equal to the images name and
                             values equals to wgs84 coordinations in a list which is as follows:
                             [West Longitude , South Latitude , East Longitude , North Latitude]""")
-        if (lg1 > lg2) or (lt1 > lt2):
+        if (lon1 > lon2) or (lat1 > lat2):
             raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:
-                                         [left, bottom, right, top]
-                                         or in other words: 
-                                         [min Longitude , min Latitude , max Longitude , max Latitude]
-                                         or in other words: 
-                                         [West Longitude , South Latitude , East Longitude , North Latitude]""")
-        if any([(lg1 > 180), (lg2 > 180),
-                (lg1 < -180), (lg2 < -180),
-                (lt1 > 90), (lt2 > 90),
-                (lt1 < -90), (lt2 < -90)]):
+                                        [left, bottom, right, top]
+                                        or in other words: 
+                                        [min Longitude , min Latitude , max Longitude , max Latitude]
+                                        or in other words: 
+                                        [West Longitude , South Latitude , East Longitude , North Latitude]""")
+        if any([(lon1 > 180), (lon2 > 180),
+                (lon1 < -180), (lon2 < -180),
+                (lat1 > 90), (lat2 > 90),
+                (lat1 < -90), (lat2 < -90)]):
             raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and
-                             Longitude is between -180 and 180. Also, the following format is required:
-                             [left, bottom, right, top]
-                             or in other words:
-                             [min Longitude , min Latitude , max Longitude , max Latitude]
-                             or in other words: 
-                             [West Longitude , South Latitude , East Longitude , North Latitude]
-                             """)
+                            Longitude is between -180 and 180. Also, the following format is required:
+                            [left, bottom, right, top]
+                            or in other words:
+                            [min Longitude , min Latitude , max Longitude , max Latitude]
+                            or in other words: 
+                            [West Longitude , South Latitude , East Longitude , North Latitude]
+                            """)
         
         w_resized, h_resized = scaled_down_image_size
-        dist_h = distance(lt1, lt2, lg1, lg1)
-        dist_w = distance(lt1, lt1, lg1, lg2)
+        dist_h = haversine_distance(lat1, lon1, lat2, lon1)
+        dist_w = haversine_distance(lat1, lon1, lat1, lon2)
         ships_coord = []
         ships_bbox_dimensions = []
         ships_length = []
         for bbox in bboxes_nms:
             bbox_x1, bbox_y1, bbox_x2, bbox_y2 = bbox
             
-            ship_longitude = (((bbox_x1 + bbox_x2) * (lg2 - lg1)) / (2 * w_resized)) + lg1
+            ship_longitude = (((bbox_x1 + bbox_x2) * (lon2 - lon1)) / (2 * w_resized)) + lon1
             ship_longitude = round(ship_longitude, 12)
-            ship_latitude = (((bbox_y1 + bbox_y2) * (lt2 - lt1)) / (2 * h_resized)) + lt1
+            ship_latitude = (((bbox_y1 + bbox_y2) * (lat2 - lat1)) / (2 * h_resized)) + lat1
             ship_latitude = round(ship_latitude, 12)
             ships_coord.append((ship_longitude, ship_latitude))
 
@@ -210,7 +208,7 @@ def ship_detection(image, model_path='models/best_model.pth', bbox_coord_wgs84=N
             result["ships_long-lat"] = ships_coord
             result["ships_length"] = ships_length
             result["ships_bbox_dimensions"] = ships_bbox_dimensions
-
+    
     return result
 
 
@@ -218,7 +216,7 @@ def ship_detection(image, model_path='models/best_model.pth', bbox_coord_wgs84=N
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
 def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
-                        sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive'):
+                        sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None):
     if path.exists(images_dir) == False:
         raise ValueError("""Please input a valid directory of images and make sure the path does not contain any space(' ') in it""")
     
@@ -228,7 +226,12 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
     for filename in listdir(images_dir):
         if filename.endswith(image_ext):
             img = filename
-            img_mask = f"{path.splitext(filename)[0]}_pred{path.splitext(filename)[1]}"
+            if output_dir == None:
+                date_time = shamsi_date_time()
+                output_dir = path.join(images_dir, f"Predictions_{date_time}")
+                if not path.exists(output_dir):
+                    makedirs(output_dir)
+            img_mask = path.join(output_dir, f"{path.splitext(filename)[0]}_pred{path.splitext(filename)[1]}")
             img_size = Image.open(path.join(images_dir, filename)).size
             images_data.append([img, img_mask, img_size])
     del img, img_mask, img_size
@@ -315,27 +318,27 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
         result[img[0]]["bboxes"] = bboxes_nms
         result[img[0]]["scores"] = scores_nms
         result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
-
+        
         # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):
         if bbox_coord_wgs84 != None:
             if bbox_coord_wgs84.get(img[0]) != None:
                 try:
-                    lg1, lt1, lg2, lt2 = bbox_coord_wgs84[img[0]]
+                    lon1, lat1, lon2, lat2 = bbox_coord_wgs84[img[0]]
                 except:
                     raise ValueError(f"""bbox_coord_wgs84 should be a python dictionary containing keys equal to the images name and
                                     values equals to wgs84 coordinations in a list which is as follows:
                                     [West Longitude , South Latitude , East Longitude , North Latitude]""")
-                if (lg1 > lg2) or (lt1 > lt2):
+                if (lon1 > lon2) or (lat1 > lat2):
                     raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:
                                                 [left, bottom, right, top]
                                                 or in other words: 
                                                 [min Longitude , min Latitude , max Longitude , max Latitude]
                                                 or in other words: 
                                                 [West Longitude , South Latitude , East Longitude , North Latitude]""")
-                if any([(lg1 > 180), (lg2 > 180),
-                        (lg1 < -180), (lg2 < -180),
-                        (lt1 > 90), (lt2 > 90),
-                        (lt1 < -90), (lt2 < -90)]):
+                if any([(lon1 > 180), (lon2 > 180),
+                        (lon1 < -180), (lon2 < -180),
+                        (lat1 > 90), (lat2 > 90),
+                        (lat1 < -90), (lat2 < -90)]):
                     raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and
                                     Longitude is between -180 and 180. Also, the following format is required:
                                     [left, bottom, right, top]
@@ -346,17 +349,17 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
                                     """)
                 
                 w_resized, h_resized = scaled_down_image_size
-                dist_h = distance(lt1, lt2, lg1, lg1)
-                dist_w = distance(lt1, lt1, lg1, lg2)
+                dist_h = haversine_distance(lat1, lon1, lat2, lon1)
+                dist_w = haversine_distance(lat1, lon1, lat1, lon2)
                 ships_coord = []
                 ships_bbox_dimensions = []
                 ships_length = []
                 for bbox in bboxes_nms:
                     bbox_x1, bbox_y1, bbox_x2, bbox_y2 = bbox
                     
-                    ship_longitude = (((bbox_x1 + bbox_x2) * (lg2 - lg1)) / (2 * w_resized)) + lg1
+                    ship_longitude = (((bbox_x1 + bbox_x2) * (lon2 - lon1)) / (2 * w_resized)) + lon1
                     ship_longitude = round(ship_longitude, 12)
-                    ship_latitude = (((bbox_y1 + bbox_y2) * (lt2 - lt1)) / (2 * h_resized)) + lt1
+                    ship_latitude = (((bbox_y1 + bbox_y2) * (lat2 - lat1)) / (2 * h_resized)) + lat1
                     ship_latitude = round(ship_latitude, 12)
                     ships_coord.append((ship_longitude, ship_latitude))
 
@@ -376,6 +379,11 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
                     result[img[0]]["ships_long-lat"] = ships_coord
                     result[img[0]]["ships_length"] = ships_length
                     result[img[0]]["ships_bbox_dimensions"] = ships_bbox_dimensions
+        
+        # drawing bbox and save image
+        output = path.join(images_dir, img[1])
+        draw_bboxes(image=sahi_scaled_down_image, bbox_list=bboxes_nms, score_list=scores_nms, length_list=result[img[0]].get("ships_length"), output_file_name=output)
+
     
     return result
 
@@ -394,3 +402,11 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
 # if input is a folder -> output n_obj , bbox , score , (lt , lg), length and
 # and save annotated image and results.csv where user specified.
 # results.csv [image]
+
+
+# remaining modules: 
+# 1- annotation and saving (annotated img) module [works either single and bunch]
+# 2- csv or json result saving module [image hyperlink - time inteval - bbox coords - n_obj - lengths sorted dscending]
+# 3- API module: takes bbox of an area - splitting it to allowable areas (sentinel-gub constraints) - download images of
+# area in given time period [maybe splitting time into possible time intervals] and request images of all those from sentinel 
+# api and run inference on all of them. result saved for each time interval and bbox coords [hyperlink the images in csv]

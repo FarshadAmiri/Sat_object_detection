@@ -1,26 +1,36 @@
+import math
+import jdatetime
+import datetime
 from math import radians, cos, sin, asin, sqrt
 
-def distance(lt1, lt2, lg1, lg2):
+def haversine_distance(lat1, lon1, lat2, lon2):
+    """
+    Calculate the great circle distance between two points
+    on the earth (specified in decimal degrees)
+    """
      
-    # The math module contains a function named
-    # radians which converts from degrees to radians.
-    lg1 = radians(lg1)
-    lg2 = radians(lg2)
-    lt1 = radians(lt1)
-    lt2 = radians(lt2)
+    # convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = map(math.radians, [lon1, lat1, lon2, lat2])
       
     # Haversine formula 
-    dlg = lg2 - lg1 
-    dlt = lt2 - lt1
-    a = sin(dlt / 2)**2 + cos(lt1) * cos(lt2) * sin(dlg / 2)**2
- 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
     c = 2 * asin(sqrt(a)) 
-    
-    # Radius of earth in meters
-    r = 6371000
+    r = 6371000    # Radius of earth in meters
 
-    # calculate the distance in meters
-    distance = c * r
+    distance = c * r     #distance in meters
     
     return distance
-     
+
+
+def shamsi_date_time():
+    # Get the current Gregorian date and time
+    today = jdatetime.date.today()
+    day, month, year = today.day, today.month, today.year
+    clock = datetime.datetime.now().strftime("%H;%M")
+
+    # Format the Jalali date and time
+    formated_datetime = f"{year}_{month}_{day}-{clock}"
+
+    return formated_datetime

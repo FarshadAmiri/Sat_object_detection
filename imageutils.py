@@ -173,3 +173,91 @@ def annotated_image_numpy(image, boxes):
     plt.close()
 
     return img_arr
+
+
+
+def image_inference_annotation(image_or_dir, bbox_list, lengths=None, scores=None, output_img_name=None):
+    if type(image_or_dir) == str:
+        image = Image.open(image_or_dir)
+    elif type(image_or_dir) == np.ndarray:
+        image = Image.fromarray(np.uint8(image_or_dir)).convert('RGB')
+    elif type(image_or_dir) != Image.Image:
+        raise TypeError("image_or_dir should be whether a np.ndarray or PIL.Image.Image or a directory string")
+    else:
+        image = image_or_dir
+
+    # plot the image
+    # plt.figure(figsize=(10,10))
+    plt.imshow(image)
+
+    # get the context for drawing boxes
+    ax = plt.gca()
+
+    # plot each box
+    for box in bbox_list:
+
+        # get coordinates
+        x1, y1, x2, y2 = box
+
+        # calculate width and height of the box
+        width, height = x2 - x1, y2 - y1
+
+        # create the shape
+        rect = Rectangle((x1, y1), width, height, fill = False, color = 'red')
+
+        # draw the box
+        ax.add_patch(rect)
+
+    # Save the figure
+    plt.xticks([])
+    plt.yticks([])
+    plt.savefig(output_img_name, dpi = 300, bbox_inches='tight')
+    plt.close()
+    return
+
+
+
+# def draw_bboxes(image, bbox_list, score_list, length_list, output_file_name):
+#     # Convert the image to BGR format
+#     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+#     # Iterate through the bounding boxes and draw them on the image
+#     for i, bbox in enumerate(bbox_list):
+#         x1, y1, x2, y2 = bbox
+#         cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+
+#         # Draw the score and length on the bounding box
+#         score = score_list[i]
+#         length = length_list[i]
+#         text = f"Score: {score}, Length: {length}"
+#         cv2.putText(image, text, (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+#     # Save the image to the output file
+#     cv2.imwrite(output_file_name, image)
+
+
+def draw_bboxes(image, bbox_list, score_list, output_file_name, length_list=None):
+    # Convert the image to BGR format
+    image = np.array(image)
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+    score_list = [float('%.2f' % elem) for elem in score_list]
+    # Iterate through the bounding boxes and draw them on the image
+    for i, bbox in enumerate(bbox_list):
+        x1, y1, x2, y2 = map(int, bbox)
+        print(x1, y1, x2, y2)
+        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+
+        # Draw the score annotation on the bounding box
+        score = score_list[i]
+        cv2.putText(image, str(score), (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+
+        # If length_list is not None, draw the length annotation on the bounding box
+        if length_list is not None:
+            length = length_list[i]
+            cv2.putText(image, str(length), (int((x1+x2)*0.5), int((y1+y2)*0.5)), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 150, 200), 2)
+
+    # Save the image to the output file
+    cv2.imwrite(output_file_name, image)
+
+    return image

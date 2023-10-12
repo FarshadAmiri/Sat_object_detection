@@ -8,7 +8,7 @@ import torch
 
 
 def sahi_slicing_inference(image_or_dir, model='models/best_model.pth', scale_down_factor=1, model_input_dim=768,
-                           device='cpu', confidence_threshold = 0.9, overlap_ratio=0.2, output_scaled_down_image=False):
+                           device='cpu', confidence_threshold = 0.9, overlap_ratio=0.2, output_scaled_down_image=True):
     
     if type(image_or_dir) == str:   # if image's path is passed into the function
         image = Image.open(image_or_dir)
