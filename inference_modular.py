@@ -335,7 +335,7 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
                     result[img[0]]["ships_length"] = ships_length
                     result[img[0]]["ships_bbox_dimensions"] = ships_bbox_dimensions
         
-        # drawing bbox and save image
+        # Drawing bbox and save image
         if save_annotated_images or output_annotated_image:
             if images_objects != None:
                 output = img[1]
