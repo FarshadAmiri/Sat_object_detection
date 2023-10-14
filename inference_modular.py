@@ -18,90 +18,9 @@ from torchvision.ops import nms
 from sahi import AutoDetectionModel
 
 
-# ship_detection_standard function takes the model and image in PIL.Image.Image format and outputs 
-# a dictionary with bboxes and respected scores in retrun.
-# def ship_detection_standard(image, model, bbox_coord_wgs84=None, model_input_dim=768, confidence_threshold=0.85, nms_iou_threshold=0.1, device='adaptive'):
-       
-#     # Set pytorch device.
-#     if device == 'adaptive':
-#         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-#     else:
-#         device = torch.device(device)
-
-#     w, h = image.size
-#     transform = tv2.Compose([tv2.ToImageTensor(), tv2.ConvertImageDtype()])
-
-#     if  w != model_input_dim or h != model_input_dim:
-#         image = resize_img(image, model_input_dim, model_input_dim)
-    
-#     image = transform(image)
-
-#     # Apply the model to the image.
-#     x_tensor = image.to(device).unsqueeze(0)
-
-#     #x_tensor = torch.from_numpy(image).to(device).unsqueeze(0)
-#     prediction = model(x_tensor)
-#     prediction = prediction[0]
-
-#     # Get the boxes and apply the cropping offset + Applying Non-max suppression
-#     bboxes = prediction['boxes'].detach()
-#     scores= prediction['scores'].detach()
-    
-#     try:
-#         bboxes = bboxes.cpu()
-#         scores = scores.cpu()
-#     except:
-#         pass
-
-#     # Perform Non-Max Suppression
-#     nms_result = nms(boxes=bboxes, scores=scores, iou_threshold=nms_iou_threshold)
-#     bboxes = bboxes.numpy() 
-#     bboxes_nms = []
-#     bboxes_nms = np.array([bboxes[i] for i in nms_result])
-#     scores_nms = np.array([scores[i] for i in nms_result])
-
-#     # remove bboxes with probability less than confidence_threshold
-#     acceptable_scores_mask = np.array([i > confidence_threshold for i in scores_nms])
-#     bboxes_nms = bboxes_nms[acceptable_scores_mask]
-#     scores_nms = scores_nms[acceptable_scores_mask]
-
-    # # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):
-    # if bbox_coord_wgs84 != None:
-    #     if (bbox_coord_wgs84[0] > bbox_coord_wgs84[2]) or (bbox_coord_wgs84[1] > bbox_coord_wgs84[3]):
-    #         raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:
-    #                                      [left, bottom, right, top]
-    #                                      or in other words: 
-    #                                      [min Longitude , min Latitude , max Longitude , max Latitude]
-    #                                      or in other words: 
-    #                                      [West Longitude , South Latitude , East Longitude , North Latitude]""")
-    #     if any([(bbox_coord_wgs84[0] > 180), (bbox_coord_wgs84[2] > 180),
-    #             (bbox_coord_wgs84[0] < -180), (bbox_coord_wgs84[2] < -180)],
-    #             (bbox_coord_wgs84[1] > 90), (bbox_coord_wgs84[3] > 90),
-    #             (bbox_coord_wgs84[1] < -90), (bbox_coord_wgs84[3] < -90)):
-    #         raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and
-    #                          Longitude is between -180 and 180. Also, the following format is required:
-    #                          [left, bottom, right, top]
-    #                          or in other words:
-    #                          [min Longitude , min Latitude , max Longitude , max Latitude]
-    #                          or in other words: 
-    #                          [West Longitude , South Latitude , East Longitude , North Latitude]
-    #                          """)
-    #     # bbox_x1, bbox_y1, bbox_x2, bbox_y2 = bboxes_nms
-    #     # cx =
-
-
-
-#     result = dict()
-#     result["n_obj"] = len(bboxes_nms)
-#     result["bboxes"] = bboxes_nms
-    # result["scores"] = scores_nms
-    
-    # return result
-
-
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
-def ship_detection(image, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
+def ship_detection_single_image(image, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
                    sahi_scale_down_factor='adaptive',sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, output_scaled_down_image=True, device='adaptive'):
     
     # Set pytorch device.
@@ -216,7 +135,7 @@ def ship_detection(image, model_path='models/best_model.pth', bbox_coord_wgs84=N
 
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
-def ship_detection_bulk(images_dir=None, images_objects=None, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
+def ship_detection(images_dir=None, images_objects=None, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
                         sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None,
                         save_annotated_images=True, output_original_image=True, output_annotated_image=False):
     
@@ -437,18 +356,7 @@ def ship_detection_bulk(images_dir=None, images_objects=None, model_path='models
 
 
 
-
-
-# if input is single image(PIL.Image.Image or np.ndarray) -> output n_obj , bbox , score , (lt_c , lg_c), length and
-# save annotated image where user specified.
-
-# if input is a folder -> output n_obj , bbox , score , (lt , lg), length and
-# and save annotated image and results.csv where user specified.
-# results.csv [image]
-
-
 # remaining modules: 
-# 1- annotation and saving (annotated img) module [works either single and bunch]
 # 2- csv or json result saving module [image hyperlink - time inteval - bbox coords - n_obj - lengths sorted dscending]
 # 3- API module: takes bbox of an area - splitting it to allowable areas (sentinel-gub constraints) - download images of
 # area in given time period [maybe splitting time into possible time intervals] and request images of all those from sentinel 
