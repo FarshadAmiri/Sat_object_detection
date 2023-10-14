@@ -9,10 +9,10 @@ import supervision as sv
 import cv2
 
 from datasets import AirbusShipDetection
-from imageutils import draw_image_with_boxes, draw_bboxes, resize_img
+from imageutils import draw_image_with_boxes, draw_bboxes, resize_img, draw_bboxes_2, draw_bbox_torchvision
 from tools import haversine_distance, shamsi_date_time
 from slicing_inference import sahi_slicing_inference
-from torchvision.transforms import v2 as Tv2
+from torchvision.transforms import v2 as tv2
 from torchvision.ops import nms
 from sahi import AutoDetectionModel
 
@@ -28,7 +28,7 @@ from sahi import AutoDetectionModel
 #         device = torch.device(device)
 
 #     w, h = image.size
-#     transform = Tv2.Compose([Tv2.ToImageTensor(), Tv2.ConvertImageDtype()])
+#     transform = tv2.Compose([tv2.ToImageTensor(), tv2.ConvertImageDtype()])
 
 #     if  w != model_input_dim or h != model_input_dim:
 #         image = resize_img(image, model_input_dim, model_input_dim)
@@ -110,7 +110,7 @@ def ship_detection(image, model_path='models/best_model.pth', bbox_coord_wgs84=N
         device = torch.device(device)
 
     w, h = image.size
-    transform = Tv2.Compose([Tv2.ToImageTensor(), Tv2.ConvertImageDtype()])
+    transform = tv2.Compose([tv2.ToImageTensor(), tv2.ConvertImageDtype()])
 
     if sahi_scale_down_factor == 'adaptive':
         p = (w * h) // (model_input_dim * model_input_dim)
@@ -216,24 +216,26 @@ def ship_detection(image, model_path='models/best_model.pth', bbox_coord_wgs84=N
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
 def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
-                        sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None):
+                        sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None, save_annotated_images=True):
     if path.exists(images_dir) == False:
         raise ValueError("""Please input a valid directory of images and make sure the path does not contain any space(' ') in it""")
     
     image_ext = ('.jpg','.jpeg', '.png', '.jp2', '.jfif', '.pjpeg', '.webp', '.tiff', '.tif')
     
     images_data = []
-    for filename in listdir(images_dir):
-        if filename.endswith(image_ext):
-            img = filename
-            if output_dir == None:
-                date_time = shamsi_date_time()
-                output_dir = path.join(images_dir, f"Predictions_{date_time}")
-                if not path.exists(output_dir):
-                    makedirs(output_dir)
-            img_mask = path.join(output_dir, f"{path.splitext(filename)[0]}_pred{path.splitext(filename)[1]}")
-            img_size = Image.open(path.join(images_dir, filename)).size
-            images_data.append([img, img_mask, img_size])
+    for root, dirs, files in walk(images_dir):
+        for filename in files:
+            if filename.endswith(image_ext):
+                img = filename
+                if output_dir == None:
+                    date_time = shamsi_date_time()
+                    output_dir = path.join(images_dir, f"Predictions_{date_time}")
+                    if not path.exists(output_dir):
+                        makedirs(output_dir)
+                img_mask = path.join(output_dir, f"{path.splitext(filename)[0]}_pred{path.splitext(filename)[1]}")
+                img_size = Image.open(path.join(images_dir, filename)).size
+                images_data.append([img, img_mask, img_size])
+        break
     del img, img_mask, img_size
 
     # Set pytorch device
@@ -242,7 +244,7 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
     else:
         device = torch.device(device)
 
-    transform = Tv2.Compose([Tv2.ToImageTensor(), Tv2.ConvertImageDtype()])
+    transform = tv2.Compose([tv2.ToImageTensor(), tv2.ConvertImageDtype()])
 
     if sahi_scale_down_factor == 'adaptive':
         for img in images_data:
@@ -370,21 +372,24 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
                     ships_bbox_dimensions.append((max(h_ship_bbox, w_ship_bbox), min(h_ship_bbox, w_ship_bbox)))
 
                     # Ship's length estimation:
-                    if (h_ship_bbox / w_ship_bbox) >= 2.5 or (w_ship_bbox / h_ship_bbox) >= 2.5:
+                    if (h_ship_bbox / w_ship_bbox) >= 3 or (w_ship_bbox / h_ship_bbox) >= 3:
                         length = max(h_ship_bbox, w_ship_bbox)
                     else:
                         length = round(math.sqrt((h_ship_bbox ** 2) + (w_ship_bbox ** 2)), 1)
                     ships_length.append(length)
 
-                    result[img[0]]["ships_long-lat"] = ships_coord
+                    result[img[0]]["ships_long_lat"] = ships_coord
                     result[img[0]]["ships_length"] = ships_length
                     result[img[0]]["ships_bbox_dimensions"] = ships_bbox_dimensions
         
         # drawing bbox and save image
-        output = path.join(images_dir, img[1])
-        draw_bboxes(image=sahi_scaled_down_image, bbox_list=bboxes_nms, score_list=scores_nms, length_list=result[img[0]].get("ships_length"), output_file_name=output)
-
+        if save_annotated_images:
+            output = path.join(images_dir, img[1])
+            draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
+                                  lengths=result[img[0]].get("ships_length"), ships_coords=result[img[0]].get("ships_long_lat"),
+                                  annotations=["score", "length", "coord"], output_file_name=output)
     
+    del model
     return result
 
 

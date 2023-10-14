@@ -1,9 +1,16 @@
 # -*- coding: utf-8 -*-
 """Utility functions for image processing."""
 import numpy as np
+import random
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from torchvision.io import read_image
+from torchvision.utils import draw_bounding_boxes
+from torchvision.transforms import v2 as tv2
+import torch
+import torchvision
 from PIL import Image
+import PIL
 import cv2
 import io
 
@@ -238,6 +245,9 @@ def image_inference_annotation(image_or_dir, bbox_list, lengths=None, scores=Non
 
 def draw_bboxes(image, bbox_list, score_list, output_file_name, length_list=None):
     # Convert the image to BGR format
+    w, h= image.size
+    thick = int((h + w) // 900)
+
     image = np.array(image)
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
@@ -245,19 +255,126 @@ def draw_bboxes(image, bbox_list, score_list, output_file_name, length_list=None
     # Iterate through the bounding boxes and draw them on the image
     for i, bbox in enumerate(bbox_list):
         x1, y1, x2, y2 = map(int, bbox)
+
+        top_left = (x1+(x2-x1)*0.2, y1+(y2-y1)*0.8)
+        bottom_right = (x1+(x2-x1)*0.8, y1+(y2-y1)*0.2)
+
+        top_left = tuple(map(int, top_left))
+        bottom_right = tuple(map(int, bottom_right))
+
         print(x1, y1, x2, y2)
-        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), thick//3)
 
         # Draw the score annotation on the bounding box
         score = score_list[i]
-        cv2.putText(image, str(score), (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+        
+        text = str(score)
 
         # If length_list is not None, draw the length annotation on the bounding box
         if length_list is not None:
+            print("x1, y1, x2, y2: ", x1, y1, x2, y2)
             length = length_list[i]
-            cv2.putText(image, str(length), (int((x1+x2)*0.5), int((y1+y2)*0.5)), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 150, 200), 2)
+            text = text + f"  L={length}"
+            # cv2.putText(image, f"L={length}", (int((x1+x2)*0.5), int((y1+y2)*0.5)), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (100, 240, 255), 2)
+        cv2.putText(image, text, top_left, cv2.FONT_HERSHEY_SIMPLEX, 0.6, (100, 240, 255), thick//3)
 
     # Save the image to the output file
     cv2.imwrite(output_file_name, image)
 
     return image
+
+
+
+def draw_bboxes_2(image, bbox_list, score_list, length_list=None, output_file_name=None):
+    """
+    Draw bounding boxes on an image with their corresponding scores and lengths.
+
+    Parameters:
+        image (PIL.Image.Image): The image to draw bounding boxes on.
+        bbox_list (list): A list of bounding boxes in the format [[x1, y1, x2, y2], ...].
+        scores (list): A list of scores corresponding to each bounding box.
+        lengths (list): An optional list of lengths corresponding to each bounding box.
+        output_file_name (str): The name of the output file to save the annotated image to.
+
+    Returns:
+        PIL.Image.Image: The annotated image.
+    """
+    # Create a copy of the original image
+    image_copy = image.copy()
+
+    # Draw bounding boxes and scores
+    for i, bbox in enumerate(bbox_list):
+        x1, y1, x2, y2 = bbox
+        score = score_list[i]
+        label = f"{score:.2f}"
+
+
+        # Load the image
+        image = Image.open("image.png")
+
+        # Set the pixel values directly
+        for x in range(image.width):
+            for y in range(image.height):
+                image.putpixel((x, y), (255, 0, 0))
+
+        # Save the updated image
+        image.save("updated_image.png")
+                # Draw bounding box
+
+        image_copy.paste(label, (x1, y1, x2, y2))
+
+        # Draw score
+        image_copy.text((x1, y1), label, font=PIL.ImageFont.truetype("arial", 16), fill=(255, 0, 0))
+
+        # Draw length
+        if length_list is not None:
+            length = length_list[i]
+            label = f"Length: {length}"
+            image_copy.text((x1, y2), label, font=PIL.ImageFont.truetype("arial", 16), fill=(255, 0, 0))
+
+    # Save annotated image
+    if output_file_name is not None:
+        image_copy.save(output_file_name)
+
+    return image_copy
+
+
+
+def draw_bbox_torchvision(image, bboxes, scores, output_file_name, lengths=None,
+                           ships_coords=None, annotations=["score", "length", "coord"]):
+    w, h = image.size
+    # thick = int((h + w) // 512)
+    # font_size = int((h + w) // 64)
+
+    font_size = int((h + w) // 64)
+
+    colors = [(255, 255, 255), (150, 255, 150), (255, 130, 0), (240, 240, 0), (200, 70, 255),  (0, 255, 0), (200, 255, 180), 
+               (40, 210, 150), (140, 250, 15), (230, 255, 100), (200, 230, 255), (15, 255, 230), (255, 150, 0), (255, 255, 255),
+              (251, 252, 11),  (40, 220, 10),  (220, 220, 0),
+              (40, 210, 150), (230, 255, 100), (15, 255, 230), ]
+    while len(colors) < len(scores):
+        colors.append(colors[random.randint(0,len(colors))])
+
+    array = np.asarray(image)
+    image_tensor = array.transpose(2, 0, 1)
+    image_tensor = image_tensor.astype(np.uint8)
+    image_tensor = torch.from_numpy(image_tensor)
+
+    bboxes = torch.from_numpy(bboxes)
+
+    # Generating labels
+    labels = ["" for idx in range(len(scores))]
+    if "score" in annotations:
+        labels = [f"{labels[idx]}{scores[idx]:.2f}  "  for idx in range(len(labels))]
+    if "length" in annotations:
+        if lengths != None:
+            labels = [f"{labels[idx]}L: {lengths[idx]:.0f}" for idx in range(len(labels))]
+    if "coord" in annotations:
+        if ships_coords !=None:
+            ships_coords = tuple(map(lambda x: (round(x[0], 4), round(x[1], 4)), ships_coords))
+            labels = [f"{labels[idx]}\n{ships_coords[idx]}" for idx in range(len(labels))]
+
+    # draw bounding boxes with fill color
+    img= draw_bounding_boxes(image_tensor, bboxes, width=3, labels= labels, font_size=1000, colors=colors[:len(scores)])
+    img = torchvision.transforms.ToPILImage()(img)
+    img.save(output_file_name)
