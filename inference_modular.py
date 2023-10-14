@@ -137,7 +137,7 @@ def ship_detection_single_image(image, model_path='models/best_model.pth', bbox_
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
 def ship_detection(images_dir=None, images_objects=None, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
                         sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None,
-                        save_annotated_images=True, output_original_image=True, output_annotated_image=False):
+                        save_annotated_images=True, output_original_image=True, output_annotated_image=False, annotations=["score", "length", "coord"]):
     
     if (images_dir == None) and (images_objects == None):
         raise ValueError("""You should provide either images_dir or images_objects arguments.
@@ -336,24 +336,18 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
                     result[img[0]]["ships_bbox_dimensions"] = ships_bbox_dimensions
         
         # drawing bbox and save image
-        if save_annotated_images:
+        if save_annotated_images or output_annotated_image:
             if images_objects != None:
                 output = img[1]
             else:
                 output = path.join(images_dir, img[1])
             annotated_image = draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
                                   lengths=result[img[0]].get("ships_length"), ships_coords=result[img[0]].get("ships_long_lat"),
-                                  annotations=["score", "length", "coord"], save=True, image_save_name=output, output_annotated_image=output_annotated_image)
+                                  annotations=annotations, save=save_annotated_images, image_save_name=output, output_annotated_image=output_annotated_image)
             if output_annotated_image:
                 result[img[0]]["annotated_image"] = annotated_image
     del model
     return result
-
-
-
-
-
-
 
 
 # remaining modules: 
