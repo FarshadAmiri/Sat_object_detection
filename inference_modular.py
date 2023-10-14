@@ -139,12 +139,15 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
                         sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None,
                         save_annotated_images=True, output_original_image=True, output_annotated_image=False, annotations=["score", "length", "coord"]):
     
+    # Check data validity (images_dir and images_objects)
     if (images_dir == None) and (images_objects == None):
         raise ValueError("""You should provide either images_dir or images_objects arguments.
                          you passed none of them into the function!""")
     elif (images_dir != None) and (images_objects != None):
         raise ValueError("""You should provide either images_dir or images_objects arguments.
                         you passed both of them into the function!""")
+    
+    # Preparing data in case images_dir is given.
     if images_dir != None:
         if path.exists(images_dir) == False:
             raise ValueError("""Please input a valid directory of images and make sure the path does not contain any space(' ') in it""")
@@ -167,7 +170,7 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
             break
         del img, img_mask, img_size
     
-    ### UNDER DEVELOPMENT
+    # Preparing data in case images_objects is given.
     elif images_objects != None:
         if type(images_objects) != list:
             if type(images_objects) not in [np.ndarray, PIL.Image.Image]:
@@ -197,7 +200,6 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
                 img_mask = 0
             img_size = img.size
             images_data.append([img, img_mask, img_size])
-    ### UNDER DEVELEOPMENT
 
     # Set pytorch device
     if device == 'adaptive':
