@@ -370,10 +370,15 @@ def draw_bbox_torchvision(image, bboxes, scores, lengths=None,ships_coords=None,
     if "coord" in annotations:
         if ships_coords !=None:
             ships_coords = tuple(map(lambda x: (round(x[0], 4), round(x[1], 4)), ships_coords))
-            labels = [f"{labels[idx]}\n{ships_coords[idx]}" for idx in range(len(labels))]
+            labels = [f"{labels[idx]}\nLon: {ships_coords[idx][0]}" for idx in range(len(labels))]
+            labels = [f"{labels[idx]}\nLat: {ships_coords[idx][1]}" for idx in range(len(labels))]
 
     # draw bounding boxes with fill color
-    annotated_image= draw_bounding_boxes(image_tensor, bboxes, width=3, labels= labels, font_size=1000, colors=colors[:len(scores)])
+    try:
+        annotated_image= draw_bounding_boxes(image_tensor, bboxes, width=3, labels= labels, font_size=14, font=r"c:\WINDOWS\Fonts\ARIBLK.TTF", colors=colors[:len(scores)])
+    except:
+        annotated_image= draw_bounding_boxes(image_tensor, bboxes, width=3, labels= labels, colors=colors[:len(scores)])
+
     annotated_image = torchvision.transforms.ToPILImage()(annotated_image)
     if save:
         if image_save_name == None:

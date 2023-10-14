@@ -1,7 +1,9 @@
+from math import radians, cos, sin, asin, sqrt
 import math
 import jdatetime
 import datetime
-from math import radians, cos, sin, asin, sqrt
+from PIL import Image
+
 
 def haversine_distance(lat1, lon1, lat2, lon2):
     """
@@ -34,3 +36,7 @@ def shamsi_date_time():
     formated_datetime = f"{year}_{month}_{day}-{clock}"
 
     return formated_datetime
+
+
+def is_image(var):
+    return isinstance(var, Image.Image)

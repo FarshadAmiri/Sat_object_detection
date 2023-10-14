@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from imageutils import draw_bbox_torchvision
-from tools import haversine_distance, shamsi_date_time
+from tools import haversine_distance, shamsi_date_time, is_image
 from slicing_inference import sahi_slicing_inference
 from torchvision.transforms import v2 as tv2
 from torchvision.ops import nms
@@ -130,26 +130,30 @@ def ship_detection_single_image(image, model_path='models/best_model.pth', bbox_
 
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
-def ship_detection(images_dir=None, images_objects=None, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
+def ship_detection(images_dir=None, images_objects_dict=None, model_or_model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
                         sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None,
                         save_annotated_images=True, output_original_image=True, output_annotated_image=False, annotations=["score", "length", "coord"]):
     
     # Check data validity (images_dir and images_objects)
-    if (images_dir == None) and (images_objects == None):
-        raise ValueError("""You should provide either images_dir or images_objects arguments.
-                         you passed none of them into the function!""")
-    elif (images_dir != None) and (images_objects != None):
-        raise ValueError("""You should provide either images_dir or images_objects arguments.
-                        you passed both of them into the function!""")
+    if (images_dir == None) and (images_objects_dict == None):
+        raise ValueError("""You should provide either images_dir or images_objects arguments; you passed none of them into the function!""")
+    elif (images_dir != None) and (images_objects_dict != None):
+        raise ValueError("""You should provide either images_dir or images_objects arguments; you passed both of them into the function!""")
+    elif images_objects_dict == None:
+        inference_mode = "directory"
+    elif type(images_objects_dict) == dict:
+        inference_mode = "images_dict"   # formerly => objects
+    elif is_image(images_objects_dict) or type(images_objects_dict) == np.ndarray:
+        inference_mode = "single_image"
     
     # Preparing data in case images_dir is given.
-    if images_dir != None:
+    images_data = []
+    if inference_mode == "directory":
         if path.exists(images_dir) == False:
             raise ValueError("""Please input a valid directory of images and make sure the path does not contain any space(' ') in it""")
         
         image_ext = ('.jpg','.jpeg', '.png', '.jp2', '.jfif', '.pjpeg', '.webp', '.tiff', '.tif')
         
-        images_data = []
         for root, dirs, files in walk(images_dir):
             for filename in files:
                 if filename.endswith(image_ext):
@@ -165,13 +169,14 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
             break
         del img, img_mask, img_size
     
-    # Preparing data in case images_objects is given.
-    elif images_objects != None:
+    ### UNDER DEVELOPMENT
+    # Preparing data in case images_objects_dict is given.
+    elif inference_mode == "images_dict":
         if type(images_objects) != list:
             if type(images_objects) not in [np.ndarray, PIL.Image.Image]:
-                raise ValueError(f"""You passed an image which is not neither a np.ndarray nor PIL.Image.Image.
-                                 images_objects must be a list of images objects or an image object in type of np.ndarray or PIL.Image.Image.""")
-            elif type(images_objects) == np.ndarray:
+                if is_image(images_objects) == False:
+                    raise ValueError(f"""You passed an image which is neither a np.ndarray nor PIL.Image.Image.\nimages_objects must be a list of images objects or an image object in type of np.ndarray or PIL.Image.Image.""")
+            if type(images_objects) == np.ndarray:
                 image = Image.fromarray(np.uint8(images_objects)).convert('RGB')
                 images_objects = [image]
             else:
@@ -182,19 +187,24 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
             if not path.exists(output_dir):
                 makedirs(output_dir)
 
-        images_data = []  
-        for idx, img in enumerate(images_objects):
-            if type(img) not in [np.ndarray, PIL.Image.Image]:
-                raise ValueError(f"""images_objects must be a list of images objects or an image object in type of np.ndarray or PIL.Image.Image.
-                                 the element of indice {idx} is in type of {type(img)}!""")
-            if type(img) == np.ndarray:
-                img = Image.fromarray(np.uint8(img)).convert('RGB')
+        for idx, image in enumerate(images_objects):
+            if type(image) not in [np.ndarray, PIL.Image.Image]:
+                if is_image(image) == False:
+                    raise ValueError(f"""images_objects must be a list of images objects or an image object in type of np.ndarray or PIL.Image.Image.\nthe element of indice {idx} is in type of {type(image)}!""")
+            if type(image) == np.ndarray:
+                image = Image.fromarray(np.uint8(image)).convert('RGB')
+            image_name = "image{0:03}.jpg".format(idx)
             if save_annotated_images:
-                img_mask = path.join(output_dir, f"pred_{idx}.jpg")
+                img_mask = path.join(output_dir, f"{image_name}_pred.jpg")
             else:
                 img_mask = 0
-            img_size = img.size
-            images_data.append([img, img_mask, img_size])
+            img_size = image.size
+            images_data.append([image_name, img_mask, img_size])
+
+    # Preparing data in case single_image is given.
+    elif inference_mode == "single_image":
+        pass
+    ### UNDER DEVELOPMENT
 
     # Set pytorch device
     if device == 'adaptive':
@@ -213,23 +223,26 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
             else:
                 img_sahi_scale_down_factor = 1
             img.append(img_sahi_scale_down_factor)
+    
+    if type(model_or_model_path) == str:
+        model = torch.load(model_or_model_path, map_location = device)
 
-    model = torch.load(model_path, map_location = device)
-
-    model = AutoDetectionModel.from_pretrained(
-    model_type='torchvision',
-    model=model,
-    confidence_threshold=sahi_confidence_threshold,
-    image_size=model_input_dim,
-    device=device, # or "cuda:0"
-    load_at_init=True,)
+        model = AutoDetectionModel.from_pretrained(
+        model_type='torchvision',
+        model=model,
+        confidence_threshold=sahi_confidence_threshold,
+        image_size=model_input_dim,
+        device=device, # or "cuda:0"
+        load_at_init=True,)
 
     result = dict()
-    for img in images_data:
-        if type(img) == str:
-            img = path.join(images_dir, img[0])
+    for counter, img in enumerate(images_data):
+        if inference_mode == "directory":
+            img_dir_or_object = path.join(images_dir, img[0])
+        else:
+            img_dir_or_object = images_objects[counter]
         print(f"Processing {img[0]}")
-        sahi_result = sahi_slicing_inference(image_or_dir=img, 
+        sahi_result = sahi_slicing_inference(image_or_dir=img_dir_or_object, 
                                 model=model, 
                                 scale_down_factor=img[3], 
                                 model_input_dim=model_input_dim, 
@@ -239,7 +252,6 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
                                 output_scaled_down_image=True
                                     )
         bboxes = sahi_result["bboxes"]
-        print(bboxes)
         scores = sahi_result["scores"]
         scaled_down_image_size = sahi_result["scaled_down_image_size"]
         sahi_scaled_down_image = sahi_result["scaled_down_image"]
@@ -262,6 +274,7 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
         bboxes_nms = []
         bboxes_nms = np.array([bboxes[i] for i in nms_result])
         scores_nms = np.array([scores[i] for i in nms_result])
+        print(f"{len(bboxes_nms)} bboxes found in {img[0]}")
 
         # Output the result
         result[img[0]] = dict()
@@ -277,27 +290,14 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
                 try:
                     lon1, lat1, lon2, lat2 = bbox_coord_wgs84[img[0]]
                 except:
-                    raise ValueError(f"""bbox_coord_wgs84 should be a python dictionary containing keys equal to the images name and
-                                    values equals to wgs84 coordinations in a list which is as follows:
-                                    [West Longitude , South Latitude , East Longitude , North Latitude]""")
+                    raise ValueError(f"""bbox_coord_wgs84 should be a python dictionary containing keys equal to the images name and values equals to wgs84 coordinations in a list which is as follows:\n[West Longitude , South Latitude , East Longitude , North Latitude]""")
                 if (lon1 > lon2) or (lat1 > lat2):
-                    raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:
-                                                [left, bottom, right, top]
-                                                or in other words: 
-                                                [min Longitude , min Latitude , max Longitude , max Latitude]
-                                                or in other words: 
-                                                [West Longitude , South Latitude , East Longitude , North Latitude]""")
+                    raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:\n[left, bottom, right, top]\nor in other words:\n[min Longitude , min Latitude , max Longitude , max Latitude]\nor in other words:\n[West Longitude , South Latitude , East Longitude , North Latitude]""")
                 if any([(lon1 > 180), (lon2 > 180),
                         (lon1 < -180), (lon2 < -180),
                         (lat1 > 90), (lat2 > 90),
                         (lat1 < -90), (lat2 < -90)]):
-                    raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and
-                                    Longitude is between -180 and 180. Also, the following format is required:
-                                    [left, bottom, right, top]
-                                    or in other words:
-                                    [min Longitude , min Latitude , max Longitude , max Latitude]
-                                    or in other words: 
-                                    [West Longitude , South Latitude , East Longitude , North Latitude]
+                    raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and Longitude is between -180 and 180. Also, the following format is required:\n[left, bottom, right, top]\nor in other words:\n[min Longitude , min Latitude , max Longitude , max Latitude]\nor in other words:\n[West Longitude , South Latitude , East Longitude , North Latitude]\n
                                     """)
                 
                 w_resized, h_resized = scaled_down_image_size
@@ -334,7 +334,7 @@ def ship_detection(images_dir=None, images_objects=None, model_path='models/best
         
         # Drawing bbox and save image
         if save_annotated_images or output_annotated_image:
-            if images_objects != None:
+            if inference_mode == "images_dict":
                 output = img[1]
             else:
                 output = path.join(images_dir, img[1])
