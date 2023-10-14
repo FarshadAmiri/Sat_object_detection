@@ -3,13 +3,14 @@ import math
 import json
 import csv
 from PIL import Image
+import PIL
 import numpy as np
 import torch
 import supervision as sv
 import cv2
 
 from datasets import AirbusShipDetection
-from imageutils import draw_image_with_boxes, draw_bboxes, resize_img, draw_bboxes_2, draw_bbox_torchvision
+from imageutils import draw_bbox_torchvision
 from tools import haversine_distance, shamsi_date_time
 from slicing_inference import sahi_slicing_inference
 from torchvision.transforms import v2 as tv2
@@ -215,29 +216,69 @@ def ship_detection(image, model_path='models/best_model.pth', bbox_coord_wgs84=N
 
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
-def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
+def ship_detection_bulk(images_dir=None, images_objects=None, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
                         sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None,
-                        save_annotated_images=True, output_original_image=True, output_annotated_image=True):
-    if path.exists(images_dir) == False:
-        raise ValueError("""Please input a valid directory of images and make sure the path does not contain any space(' ') in it""")
+                        save_annotated_images=True, output_original_image=True, output_annotated_image=False):
     
-    image_ext = ('.jpg','.jpeg', '.png', '.jp2', '.jfif', '.pjpeg', '.webp', '.tiff', '.tif')
+    if (images_dir == None) and (images_objects == None):
+        raise ValueError("""You should provide either images_dir or images_objects arguments.
+                         you passed none of them into the function!""")
+    elif (images_dir != None) and (images_objects != None):
+        raise ValueError("""You should provide either images_dir or images_objects arguments.
+                        you passed both of them into the function!""")
+    if images_dir != None:
+        if path.exists(images_dir) == False:
+            raise ValueError("""Please input a valid directory of images and make sure the path does not contain any space(' ') in it""")
+        
+        image_ext = ('.jpg','.jpeg', '.png', '.jp2', '.jfif', '.pjpeg', '.webp', '.tiff', '.tif')
+        
+        images_data = []
+        for root, dirs, files in walk(images_dir):
+            for filename in files:
+                if filename.endswith(image_ext):
+                    img = filename
+                    if output_dir == None:
+                        date_time = shamsi_date_time()
+                        output_dir = path.join(images_dir, f"Predictions_{date_time}")
+                        if not path.exists(output_dir):
+                            makedirs(output_dir)
+                    img_mask = path.join(output_dir, f"{path.splitext(filename)[0]}_pred{path.splitext(filename)[1]}")
+                    img_size = Image.open(path.join(images_dir, filename)).size
+                    images_data.append([img, img_mask, img_size])
+            break
+        del img, img_mask, img_size
     
-    images_data = []
-    for root, dirs, files in walk(images_dir):
-        for filename in files:
-            if filename.endswith(image_ext):
-                img = filename
-                if output_dir == None:
-                    date_time = shamsi_date_time()
-                    output_dir = path.join(images_dir, f"Predictions_{date_time}")
-                    if not path.exists(output_dir):
-                        makedirs(output_dir)
-                img_mask = path.join(output_dir, f"{path.splitext(filename)[0]}_pred{path.splitext(filename)[1]}")
-                img_size = Image.open(path.join(images_dir, filename)).size
-                images_data.append([img, img_mask, img_size])
-        break
-    del img, img_mask, img_size
+    ### UNDER DEVELOPMENT
+    elif images_objects != None:
+        if type(images_objects) != list:
+            if type(images_objects) not in [np.ndarray, PIL.Image.Image]:
+                raise ValueError(f"""You passed an image which is not neither a np.ndarray nor PIL.Image.Image.
+                                 images_objects must be a list of images objects or an image object in type of np.ndarray or PIL.Image.Image.""")
+            elif type(images_objects) == np.ndarray:
+                image = Image.fromarray(np.uint8(images_objects)).convert('RGB')
+                images_objects = [image]
+            else:
+                images_objects = [images_objects]
+        if (save_annotated_images== True) and (output_dir==None):
+            raise ValueError("output_dir must be passed when save_annotated_images is True in images_objects mode!")
+        elif (save_annotated_images== True) and (output_dir!=None):
+            if not path.exists(output_dir):
+                makedirs(output_dir)
+
+        images_data = []  
+        for idx, img in enumerate(images_objects):
+            if type(img) not in [np.ndarray, PIL.Image.Image]:
+                raise ValueError(f"""images_objects must be a list of images objects or an image object in type of np.ndarray or PIL.Image.Image.
+                                 the element of indice {idx} is in type of {type(img)}!""")
+            if type(img) == np.ndarray:
+                img = Image.fromarray(np.uint8(img)).convert('RGB')
+            if save_annotated_images:
+                img_mask = path.join(output_dir, f"pred_{idx}.jpg")
+            else:
+                img_mask = 0
+            img_size = img.size
+            images_data.append([img, img_mask, img_size])
+    ### UNDER DEVELEOPMENT
 
     # Set pytorch device
     if device == 'adaptive':
@@ -245,7 +286,7 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
     else:
         device = torch.device(device)
 
-    transform = tv2.Compose([tv2.ToImageTensor(), tv2.ConvertImageDtype()])
+    # transform = tv2.Compose([tv2.ToImageTensor(), tv2.ConvertImageDtype()])
 
     if sahi_scale_down_factor == 'adaptive':
         for img in images_data:
@@ -269,9 +310,10 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
 
     result = dict()
     for img in images_data:
-        img_dir = path.join(images_dir, img[0])
+        if type(img) == str:
+            img = path.join(images_dir, img[0])
         print(f"Processing {img[0]}")
-        sahi_result = sahi_slicing_inference(image_or_dir=img_dir, 
+        sahi_result = sahi_slicing_inference(image_or_dir=img, 
                                 model=model, 
                                 scale_down_factor=img[3], 
                                 model_input_dim=model_input_dim, 
@@ -376,11 +418,15 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
         
         # drawing bbox and save image
         if save_annotated_images:
-            output = path.join(images_dir, img[1])
-            draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
+            if images_objects != None:
+                output = img[1]
+            else:
+                output = path.join(images_dir, img[1])
+            annotated_image = draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
                                   lengths=result[img[0]].get("ships_length"), ships_coords=result[img[0]].get("ships_long_lat"),
-                                  annotations=["score", "length", "coord"], save=True, image_save_name=output)
-    
+                                  annotations=["score", "length", "coord"], save=True, image_save_name=output, output_annotated_image=output_annotated_image)
+            if output_annotated_image:
+                result[img[0]]["annotated_image"] = annotated_image
     del model
     return result
 
