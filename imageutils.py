@@ -340,21 +340,19 @@ def draw_bboxes_2(image, bbox_list, score_list, length_list=None, output_file_na
 
 
 
-def draw_bbox_torchvision(image, bboxes, scores, output_file_name, lengths=None,
-                           ships_coords=None, annotations=["score", "length", "coord"]):
-    w, h = image.size
+def draw_bbox_torchvision(image, bboxes, scores, lengths=None,ships_coords=None, annotations=["score", "length", "coord"],
+                           save=True, image_save_name=None, output_annotated_image=False):
+    # w, h = image.size
     # thick = int((h + w) // 512)
     # font_size = int((h + w) // 64)
 
-    font_size = int((h + w) // 64)
-
     colors = [(255, 255, 255), (150, 255, 150), (255, 130, 0), (240, 240, 0), (200, 70, 255),  (0, 255, 0), (200, 255, 180), 
                (40, 210, 150), (140, 250, 15), (230, 255, 100), (200, 230, 255), (15, 255, 230), (255, 150, 0), (255, 255, 255),
-              (251, 252, 11),  (40, 220, 10),  (220, 220, 0),
-              (40, 210, 150), (230, 255, 100), (15, 255, 230), ]
+              (251, 252, 11),  (40, 220, 10),  (220, 220, 0),(40, 210, 150), (230, 255, 100), (15, 255, 230), ]
     while len(colors) < len(scores):
         colors.append(colors[random.randint(0,len(colors))])
 
+    # Convert PIL.Image.Image to a torch.tensor
     array = np.asarray(image)
     image_tensor = array.transpose(2, 0, 1)
     image_tensor = image_tensor.astype(np.uint8)
@@ -375,6 +373,12 @@ def draw_bbox_torchvision(image, bboxes, scores, output_file_name, lengths=None,
             labels = [f"{labels[idx]}\n{ships_coords[idx]}" for idx in range(len(labels))]
 
     # draw bounding boxes with fill color
-    img= draw_bounding_boxes(image_tensor, bboxes, width=3, labels= labels, font_size=1000, colors=colors[:len(scores)])
-    img = torchvision.transforms.ToPILImage()(img)
-    img.save(output_file_name)
+    annotated_image= draw_bounding_boxes(image_tensor, bboxes, width=3, labels= labels, font_size=1000, colors=colors[:len(scores)])
+    annotated_image = torchvision.transforms.ToPILImage()(annotated_image)
+    if save:
+        if image_save_name == None:
+            raise ValueError("image_save_name must be provided when 'save' parameter is set True")
+        annotated_image.save(image_save_name)
+
+    if output_annotated_image:
+        return annotated_image

@@ -216,7 +216,8 @@ def ship_detection(image, model_path='models/best_model.pth', bbox_coord_wgs84=N
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
 def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
-                        sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None, save_annotated_images=True):
+                        sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None,
+                        save_annotated_images=True, output_original_image=True, output_annotated_image=True):
     if path.exists(images_dir) == False:
         raise ValueError("""Please input a valid directory of images and make sure the path does not contain any space(' ') in it""")
     
@@ -255,16 +256,6 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
             else:
                 img_sahi_scale_down_factor = 1
             img.append(img_sahi_scale_down_factor)
-
-    # organized_images_by_scale_down_factor = {}
-    # for sublist in images_data:
-    #     last_element = sublist[-1]
-    #     if last_element not in organized_images_by_scale_down_factor:
-    #         organized_images_by_scale_down_factor[last_element] = []
-    #     organized_images_by_scale_down_factor[last_element].append(sublist)
-
-    # for sc_factor in organized_images_by_scale_down_factor.keys():
-    #     images_same_scfd = organized_images_by_scale_down_factor[sc_factor]
 
     model = torch.load(model_path, map_location = device)
 
@@ -319,7 +310,8 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
         result[img[0]]["n_obj"] = len(bboxes_nms)
         result[img[0]]["bboxes"] = bboxes_nms
         result[img[0]]["scores"] = scores_nms
-        result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
+        if output_original_image:
+            result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
         
         # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):
         if bbox_coord_wgs84 != None:
@@ -387,7 +379,7 @@ def ship_detection_bulk(images_dir, model_path='models/best_model.pth', bbox_coo
             output = path.join(images_dir, img[1])
             draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
                                   lengths=result[img[0]].get("ships_length"), ships_coords=result[img[0]].get("ships_long_lat"),
-                                  annotations=["score", "length", "coord"], output_file_name=output)
+                                  annotations=["score", "length", "coord"], save=True, image_save_name=output)
     
     del model
     return result
