@@ -1,15 +1,10 @@
-from os import path, walk, makedirs, listdir
+from os import path, walk, makedirs
 import math
-import json
-import csv
 from PIL import Image
 import PIL
 import numpy as np
 import torch
-import supervision as sv
-import cv2
 
-from datasets import AirbusShipDetection
 from imageutils import draw_bbox_torchvision
 from tools import haversine_distance, shamsi_date_time
 from slicing_inference import sahi_slicing_inference
