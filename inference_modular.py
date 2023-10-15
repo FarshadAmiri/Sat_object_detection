@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from imageutils import draw_bbox_torchvision
-from tools import haversine_distance, shamsi_date_time, is_image
+from tools import haversine_distance, shamsi_date_time, is_image, verify_coords
 from slicing_inference import sahi_slicing_inference
 from torchvision.transforms import v2 as tv2
 from torchvision.ops import nms
@@ -130,21 +130,23 @@ def ship_detection_single_image(image, model_path='models/best_model.pth', bbox_
 
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
-def ship_detection(images_dir=None, images_objects_dict=None, model_or_model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
-                        sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None,
-                        save_annotated_images=True, output_original_image=True, output_annotated_image=False, annotations=["score", "length", "coord"]):
+def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
+                        sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None, output_name="prediction",
+                        save_annotated_image=True, output_original_image=True, output_annotated_image=False, annotations=["score", "length", "coord"]):
     
     # Check data validity (images_dir and images_objects)
-    if (images_dir == None) and (images_objects_dict == None):
-        raise ValueError("""You should provide either images_dir or images_objects arguments; you passed none of them into the function!""")
-    elif (images_dir != None) and (images_objects_dict != None):
-        raise ValueError("""You should provide either images_dir or images_objects arguments; you passed both of them into the function!""")
-    elif images_objects_dict == None:
-        inference_mode = "directory"
-    elif type(images_objects_dict) == dict:
-        inference_mode = "images_dict"   # formerly => objects
-    elif is_image(images_objects_dict) or type(images_objects_dict) == np.ndarray:
+    if type(images) == dict:
+        inference_mode = "images_dict"
+        images_dict = images
+    elif is_image(images):
         inference_mode = "single_image"
+        single_image = images
+    elif type(images) == str:
+        inference_mode = "directory"
+        images_dir = images
+    else:
+        raise ValueError("""'images' must be an images directory or a single image(np.ndarray or PIL images) or a dictionary containing images with the following format:\n{'image_name1': {'image': PIL.Image.Image, 'coord':(53.78436, 24.16872)}, 'image_name2': {'image': np.ndarray}}""")
+    del images
     
     # Preparing data in case images_dir is given.
     images_data = []
@@ -157,53 +159,68 @@ def ship_detection(images_dir=None, images_objects_dict=None, model_or_model_pat
         for root, dirs, files in walk(images_dir):
             for filename in files:
                 if filename.endswith(image_ext):
-                    img = filename
-                    if output_dir == None:
-                        date_time = shamsi_date_time()
-                        output_dir = path.join(images_dir, f"Predictions_{date_time}")
-                        if not path.exists(output_dir):
-                            makedirs(output_dir)
-                    img_mask = path.join(output_dir, f"{path.splitext(filename)[0]}_pred{path.splitext(filename)[1]}")
+                    if save_annotated_image:
+                        img_name = filename
+                        if output_dir == None:
+                            date_time = shamsi_date_time()
+                            output_dir = path.join(images_dir, f"Predictions_{date_time}")
+                            if not path.exists(output_dir):
+                                makedirs(output_dir)
+                        img_mask = path.join(output_dir, f"{path.splitext(filename)[0]}_pred{path.splitext(filename)[1]}")
+                    img_mask = 0
                     img_size = Image.open(path.join(images_dir, filename)).size
-                    images_data.append([img, img_mask, img_size])
+                    images_data.append([img_name, img_mask, img_size])   #image_name= ok   img_mask = 0 or full_out_dir
             break
         del img, img_mask, img_size
     
     ### UNDER DEVELOPMENT
-    # Preparing data in case images_objects_dict is given.
+    # Preparing data in case images_dict is given.
     elif inference_mode == "images_dict":
-        if type(images_objects) != list:
-            if type(images_objects) not in [np.ndarray, PIL.Image.Image]:
-                if is_image(images_objects) == False:
-                    raise ValueError(f"""You passed an image which is neither a np.ndarray nor PIL.Image.Image.\nimages_objects must be a list of images objects or an image object in type of np.ndarray or PIL.Image.Image.""")
-            if type(images_objects) == np.ndarray:
-                image = Image.fromarray(np.uint8(images_objects)).convert('RGB')
-                images_objects = [image]
-            else:
-                images_objects = [images_objects]
-        if (save_annotated_images== True) and (output_dir==None):
-            raise ValueError("output_dir must be passed when save_annotated_images is True in images_objects mode!")
-        elif (save_annotated_images== True) and (output_dir!=None):
+        images_names = list(images_dict.keys())
+        if (save_annotated_image== True) and (output_dir==None):
+            raise ValueError("output_dir must be passed when save_annotated_images is True on images dictionary mode!")
+        elif (save_annotated_image== True) and (output_dir!=None):
             if not path.exists(output_dir):
                 makedirs(output_dir)
 
-        for idx, image in enumerate(images_objects):
-            if type(image) not in [np.ndarray, PIL.Image.Image]:
-                if is_image(image) == False:
-                    raise ValueError(f"""images_objects must be a list of images objects or an image object in type of np.ndarray or PIL.Image.Image.\nthe element of indice {idx} is in type of {type(image)}!""")
-            if type(image) == np.ndarray:
-                image = Image.fromarray(np.uint8(image)).convert('RGB')
-            image_name = "image{0:03}.jpg".format(idx)
-            if save_annotated_images:
-                img_mask = path.join(output_dir, f"{image_name}_pred.jpg")
+        for idx, img_name in enumerate(images_names):
+            img = images_dict[img_name]["image"]
+            if is_image(img) == False:
+                raise ValueError(f"""images dictionary must contain images objects in type of np.ndarray or PIL images.\nthe object {img_name} is in type of {type(img)}!""")
+            if type(img) == np.ndarray:
+                img = Image.fromarray(np.uint8(img)).convert('RGB')
+            if save_annotated_image:
+                img_mask = path.join(output_dir, f"{img_name}_pred.jpg")
             else:
                 img_mask = 0
-            img_size = image.size
-            images_data.append([image_name, img_mask, img_size])
+            img_size = img.size
+            images_data.append([img_name, img_mask, img_size])    #image_name= ok   img_mask = 0 or full_out_dir
 
     # Preparing data in case single_image is given.
     elif inference_mode == "single_image":
-        pass
+        if is_image(single_image) == False:
+            raise ValueError(f"""Wrong input! image must be in np.ndarray or PIL images type.""")
+        if type(single_image) == np.ndarray:
+            single_image = Image.fromarray(np.uint8(single_image)).convert('RGB')
+        if (save_annotated_image== True) and (output_dir==None):
+            raise ValueError("output_dir must be passed when save_annotated_images is True in single image mode!")
+        elif (save_annotated_image== True) and (output_dir!=None):
+            if not path.exists(output_dir):
+                makedirs(output_dir)
+        image_ext = ('.jpg','.jpeg', '.png', '.jp2', '.jfif', '.pjpeg', '.webp', '.tiff', '.tif')
+        if save_annotated_image:
+            if output_dir.endswith(image_ext) == False:
+                if output_name.endswith(image_ext) == False:
+                    output_name = output_name + '.jpg'
+                img_mask = path.join(output_dir, output_name)
+            else:
+                img_mask = output_name
+        else:
+            img_mask = 0
+        img_size = single_image.size
+        img_name = output_name
+        
+        images_data.append([img_name, img_mask, img_size])   #image_name= ok   img_mask = 0 or full_out_dir
     ### UNDER DEVELOPMENT
 
     # Set pytorch device
@@ -239,8 +256,10 @@ def ship_detection(images_dir=None, images_objects_dict=None, model_or_model_pat
     for counter, img in enumerate(images_data):
         if inference_mode == "directory":
             img_dir_or_object = path.join(images_dir, img[0])
-        else:
-            img_dir_or_object = images_objects[counter]
+        elif inference_mode == "images_dict":
+            img_dir_or_object = images_dict[img_name]["image"]
+        elif inference_mode == "single_image":
+            img_dir_or_object = single_image
         print(f"Processing {img[0]}")
         sahi_result = sahi_slicing_inference(image_or_dir=img_dir_or_object, 
                                 model=model, 
@@ -249,24 +268,36 @@ def ship_detection(images_dir=None, images_objects_dict=None, model_or_model_pat
                                 device=device, 
                                 confidence_threshold=sahi_confidence_threshold, 
                                 overlap_ratio=sahi_overlap_ratio,
-                                output_scaled_down_image=True
+                                output_scaled_down_image=any([save_annotated_image, output_original_image, output_annotated_image])
                                     )
         bboxes = sahi_result["bboxes"]
         scores = sahi_result["scores"]
         scaled_down_image_size = sahi_result["scaled_down_image_size"]
-        sahi_scaled_down_image = sahi_result["scaled_down_image"]
+        sahi_scaled_down_image = sahi_result.get("scaled_down_image")
         # image = transform(image) 
         
         # Perform Non-Max Suppression
         if bboxes.dim() == 1:
             result[img[0]] = dict()
-            result[img[0]]["n_obj"] = 0
-            result[img[0]]["bboxes"] = bboxes
-            result[img[0]]["scores"] = scores
-            result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
-            result[img[0]]["ships_coord"] = []
-            result[img[0]]["ships_length"] = []
-            result[img[0]]["ships_bbox_dimensions"] = []
+            if inference_mode == "single_image":
+                result["n_obj"] = 0
+                result["bboxes"] = bboxes
+                result["scores"] = scores
+                result["sahi_scaled_down_image"] = sahi_scaled_down_image
+                if bbox_coord_wgs84 != None:
+                    result["ships_long_lat"] = []
+                    result["ships_length"] = []
+                    result["ships_bbox_dimensions"] = []
+            else:
+                result[img[0]]["n_obj"] = 0
+                result[img[0]]["bboxes"] = bboxes
+                result[img[0]]["scores"] = scores
+                result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
+            if bbox_coord_wgs84 != None:
+                if bbox_coord_wgs84.get(img[0]) != None:
+                    result[img[0]]["ships_long_lat"] = []
+                    result[img[0]]["ships_length"] = []
+                    result[img[0]]["ships_bbox_dimensions"] = []
             continue
 
         nms_result = nms(boxes=bboxes, scores=scores, iou_threshold=nms_iou_threshold)
@@ -277,72 +308,85 @@ def ship_detection(images_dir=None, images_objects_dict=None, model_or_model_pat
         print(f"{len(bboxes_nms)} bboxes found in {img[0]}")
 
         # Output the result
-        result[img[0]] = dict()
-        result[img[0]]["n_obj"] = len(bboxes_nms)
-        result[img[0]]["bboxes"] = bboxes_nms
-        result[img[0]]["scores"] = scores_nms
-        if output_original_image:
-            result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
+        if inference_mode == "single_image":
+            result = dict()
+            result["n_obj"] = len(bboxes_nms)
+            result["bboxes"] = bboxes_nms
+            result["scores"] = scores_nms
+            if output_original_image:
+                result["sahi_scaled_down_image"] = sahi_scaled_down_image
+        else:
+            result[img[0]] = dict()
+            result[img[0]]["n_obj"] = len(bboxes_nms)
+            result[img[0]]["bboxes"] = bboxes_nms
+            result[img[0]]["scores"] = scores_nms
+            if output_original_image:
+                result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
         
-        # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):
+        # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):coords_verified = False
+        coords_verified = False
         if bbox_coord_wgs84 != None:
-            if bbox_coord_wgs84.get(img[0]) != None:
-                try:
-                    lon1, lat1, lon2, lat2 = bbox_coord_wgs84[img[0]]
-                except:
-                    raise ValueError(f"""bbox_coord_wgs84 should be a python dictionary containing keys equal to the images name and values equals to wgs84 coordinations in a list which is as follows:\n[West Longitude , South Latitude , East Longitude , North Latitude]""")
-                if (lon1 > lon2) or (lat1 > lat2):
-                    raise ValueError("""bbox_coord_wgs84 is supposed to be in the following format:\n[left, bottom, right, top]\nor in other words:\n[min Longitude , min Latitude , max Longitude , max Latitude]\nor in other words:\n[West Longitude , South Latitude , East Longitude , North Latitude]""")
-                if any([(lon1 > 180), (lon2 > 180),
-                        (lon1 < -180), (lon2 < -180),
-                        (lat1 > 90), (lat2 > 90),
-                        (lat1 < -90), (lat2 < -90)]):
-                    raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and Longitude is between -180 and 180. Also, the following format is required:\n[left, bottom, right, top]\nor in other words:\n[min Longitude , min Latitude , max Longitude , max Latitude]\nor in other words:\n[West Longitude , South Latitude , East Longitude , North Latitude]\n
-                                    """)
+            if inference_mode == "single_image":
+                if type(bbox_coord_wgs84) in [list, tuple]:
+                    coords_verified, lon1, lat1, lon2, lat2 = verify_coords(coords=bbox_coord_wgs84, inference_mode=inference_mode)
+                elif type(bbox_coord_wgs84) == dict:
+                    coords_verified, lon1, lat1, lon2, lat2 = verify_coords(coords=bbox_coord_wgs84[bbox_coord_wgs84.keys()[0]], inference_mode=inference_mode) 
+            elif bbox_coord_wgs84.get(img[0]) != None:
+                coords_verified, lon1, lat1, lon2, lat2 = verify_coords(coords=bbox_coord_wgs84[img[0]], inference_mode=inference_mode) 
+
+        if coords_verified:
+            w_resized, h_resized = scaled_down_image_size
+            dist_h = haversine_distance(lon1, lat1, lon1, lat2)
+            dist_w = haversine_distance(lon1, lat1, lon2, lat1)
+            ships_coord = []
+            ships_bbox_dimensions = []
+            ships_length = []
+            for bbox in bboxes_nms:
+                bbox_x1, bbox_y1, bbox_x2, bbox_y2 = bbox
                 
-                w_resized, h_resized = scaled_down_image_size
-                dist_h = haversine_distance(lat1, lon1, lat2, lon1)
-                dist_w = haversine_distance(lat1, lon1, lat1, lon2)
-                ships_coord = []
-                ships_bbox_dimensions = []
-                ships_length = []
-                for bbox in bboxes_nms:
-                    bbox_x1, bbox_y1, bbox_x2, bbox_y2 = bbox
-                    
-                    ship_longitude = (((bbox_x1 + bbox_x2) * (lon2 - lon1)) / (2 * w_resized)) + lon1
-                    ship_longitude = round(ship_longitude, 12)
-                    ship_latitude = (((bbox_y1 + bbox_y2) * (lat2 - lat1)) / (2 * h_resized)) + lat1
-                    ship_latitude = round(ship_latitude, 12)
-                    ships_coord.append((ship_longitude, ship_latitude))
+                ship_longitude = (((bbox_x1 + bbox_x2) * (lon2 - lon1)) / (2 * w_resized)) + lon1
+                ship_longitude = round(ship_longitude, 12)
+                ship_latitude = (((bbox_y1 + bbox_y2) * (lat2 - lat1)) / (2 * h_resized)) + lat1
+                ship_latitude = round(ship_latitude, 12)
+                ships_coord.append((ship_longitude, ship_latitude))
 
-                    h_ship_bbox = ((bbox_y2 - bbox_y1) * dist_h) / h_resized
-                    h_ship_bbox = round(h_ship_bbox, 1)
-                    w_ship_bbox = ((bbox_x2 - bbox_x1) * dist_w) / w_resized
-                    w_ship_bbox = round(w_ship_bbox, 1)
-                    ships_bbox_dimensions.append((max(h_ship_bbox, w_ship_bbox), min(h_ship_bbox, w_ship_bbox)))
+                h_ship_bbox = ((bbox_y2 - bbox_y1) * dist_h) / h_resized
+                h_ship_bbox = round(h_ship_bbox, 1)
+                w_ship_bbox = ((bbox_x2 - bbox_x1) * dist_w) / w_resized
+                w_ship_bbox = round(w_ship_bbox, 1)
+                ships_bbox_dimensions.append((max(h_ship_bbox, w_ship_bbox), min(h_ship_bbox, w_ship_bbox)))
 
-                    # Ship's length estimation:
-                    if (h_ship_bbox / w_ship_bbox) >= 3 or (w_ship_bbox / h_ship_bbox) >= 3:
-                        length = max(h_ship_bbox, w_ship_bbox)
-                    else:
-                        length = round(math.sqrt((h_ship_bbox ** 2) + (w_ship_bbox ** 2)), 1)
-                    ships_length.append(length)
+                # Ship's length estimation:
+                if (h_ship_bbox / w_ship_bbox) >= 3 or (w_ship_bbox / h_ship_bbox) >= 3:
+                    length = max(h_ship_bbox, w_ship_bbox)
+                else:
+                    length = round(math.sqrt((h_ship_bbox ** 2) + (w_ship_bbox ** 2)), 1)
+                ships_length.append(length)
 
+                if inference_mode == "single_image":
+                    result["ships_long_lat"] = ships_coord
+                    result["ships_length"] = ships_length
+                    result["ships_bbox_dimensions"] = ships_bbox_dimensions
+                else:
                     result[img[0]]["ships_long_lat"] = ships_coord
                     result[img[0]]["ships_length"] = ships_length
                     result[img[0]]["ships_bbox_dimensions"] = ships_bbox_dimensions
         
         # Drawing bbox and save image
-        if save_annotated_images or output_annotated_image:
-            if inference_mode == "images_dict":
-                output = img[1]
+        if save_annotated_image or output_annotated_image:
+            image_save_name = img[1]
+            if inference_mode == "single_image":
+                annotated_image = draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
+                        lengths=result.get("ships_length"), ships_coords=result.get("ships_long_lat"),
+                        annotations=annotations, save=save_annotated_image, image_save_name=image_save_name, output_annotated_image=output_annotated_image)
+                if output_annotated_image:
+                    result["annotated_image"] = annotated_image
             else:
-                output = path.join(images_dir, img[1])
-            annotated_image = draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
+                annotated_image = draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
                                   lengths=result[img[0]].get("ships_length"), ships_coords=result[img[0]].get("ships_long_lat"),
-                                  annotations=annotations, save=save_annotated_images, image_save_name=output, output_annotated_image=output_annotated_image)
-            if output_annotated_image:
-                result[img[0]]["annotated_image"] = annotated_image
+                                  annotations=annotations, save=save_annotated_image, image_save_name=image_save_name, output_annotated_image=output_annotated_image)
+                if output_annotated_image:
+                    result[img[0]]["annotated_image"] = annotated_image
     del model
     return result
 
