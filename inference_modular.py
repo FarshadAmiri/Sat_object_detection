@@ -246,7 +246,7 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
                 scale_down_rate = float(scale_down_factor)
             except:
                 raise ValueError('scale_down_factor should be either set to "adaptive" or set to a number (int or float)')
-        print(f"scale_down_rate: {scale_down_rate}")
+        # print(f"scale_down_rate: {scale_down_rate}")
         img.append(scale_down_rate)
 
     if type(model_or_model_path) == str:
@@ -397,6 +397,12 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
                                   font=annotation_font, font_size=annotation_font_size, bbox_width=annotation_bbox_width)
                 if output_annotated_image:
                     result[img[0]]["annotated_image"] = annotated_image
+    
+    if save_annotated_image == True:
+        txt_dir = path.join(output_dir, 'inference_config.txt')
+        with open(txt_dir, 'w') as f:
+            f.write(f"""model_or_model_path= {model_or_model_path}\nmodel_input_dim={model_input_dim}\ndevice={device}\n--------------\nconfidence_threshold={confidence_threshold}\nnms_iou_threshold={nms_iou_threshold}\nsahi_overlap_ratio={sahi_overlap_ratio}\nscale_down_factor={scale_down_factor}\nadaptive_scale_down_parameters = {adaptive_scale_down_parameters}\n--------------\nannotation_font={annotation_font}\nannotation_font_size={annotation_font_size}\nannotation_bbox_width={annotation_bbox_width}""")
+
     del model
     return result
 
