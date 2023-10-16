@@ -66,8 +66,7 @@ def calculate_scale_down_factor(area, model_input_dim=768, a=0.2 , b=0.75, thres
     average_dim =  math.sqrt(area)
     dim_ratio = average_dim / model_input_dim
     if dim_ratio > threshold:
-        dim_scaled_down = (a * average_dim) + b
-        scale_factor = average_dim / dim_scaled_down
+        scale_factor = (a * dim_ratio) + b
     else:
         scale_factor = 1
     return scale_factor

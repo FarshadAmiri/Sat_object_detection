@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from imageutils import draw_bbox_torchvision
-from tools import haversine_distance, shamsi_date_time, is_image, verify_coords
+from tools import haversine_distance, shamsi_date_time, is_image, verify_coords, calculate_scale_down_factor
 from slicing_inference import sahi_slicing_inference
 from torchvision.transforms import v2 as tv2
 from torchvision.ops import nms
@@ -130,10 +130,11 @@ def ship_detection_single_image(image, model_path='models/best_model.pth', bbox_
 
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
-def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, confidence_threshold=0.9,sahi_scale_down_factor='adaptive',
-                   sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None, output_name="prediction",save_annotated_image=False,
-                   output_original_image=False, output_annotated_image=True, annotations=["score", "length", "coord"], annotation_font=r"calibri.ttf",
-                   annotation_font_size=14, annotation_bbox_width=2):
+def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, confidence_threshold=0.9,
+                   scale_down_factor='adaptive', adaptive_scale_down_parameters = {'a': 0.2, 'b': 0.75, 'threshold': 1.5}, sahi_overlap_ratio=0.2,
+                   nms_iou_threshold=0.1, device='adaptive', output_dir=None, output_name="prediction",save_annotated_image=False,
+                   output_original_image=False, output_annotated_image=True, annotations=["score", "length", "coord"],
+                   annotation_font=r"calibri.ttf",annotation_font_size=14, annotation_bbox_width=2):
     
     # Check data validity (images_dir and images_objects)
     if type(images) == dict:
@@ -233,30 +234,21 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
     # transform = tv2.Compose([tv2.ToImageTensor(), tv2.ConvertImageDtype()])
 
     for img in images_data:
-        if 'adaptive' in sahi_scale_down_factor:
-            if "-c" in sahi_scale_down_factor:
-                try:
-                    c = float(sahi_scale_down_factor.split("-c")[1])
-                except:
-                    pass
-            else:
-                c = 10
-            w, h = img[2]
-            area_ratio = (w * h) // (model_input_dim * model_input_dim)
-            if area_ratio > c:
-                img_sahi_scale_down_factor = int(round(math.sqrt(area_ratio / (2*c)), 0))
-            else:
-                img_sahi_scale_down_factor = 1
-            img.append(img_sahi_scale_down_factor)
-
-        elif type(sahi_scale_down_factor) in [int, float]:
-            img.append(sahi_scale_down_factor)
+        if scale_down_factor == 'adaptive':
+            a = adaptive_scale_down_parameters['a']
+            b = adaptive_scale_down_parameters['b']
+            threshold = adaptive_scale_down_parameters['threshold']
+            area = img[2][0] * img[2][1]
+            
+            scale_down_rate = calculate_scale_down_factor(area, model_input_dim ,a ,b ,threshold)
         else:
             try:
-                img.append(float(sahi_scale_down_factor))
+                scale_down_rate = float(scale_down_factor)
             except:
-                raise ValueError("""sahi_scale_down_factor sould be one of the below:\n"adaptive"\n"adaptive-cx" which x can be any number\nA float or integer value""")
-    
+                raise ValueError('scale_down_factor should be either set to "adaptive" or set to a number (int or float)')
+        print(f"scale_down_rate: {scale_down_rate}")
+        img.append(scale_down_rate)
+
     if type(model_or_model_path) == str:
         model = torch.load(model_or_model_path, map_location = device)
 
@@ -269,7 +261,7 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
         load_at_init=True,)
 
     result = dict()
-    for counter, img in enumerate(images_data):
+    for img in images_data:
         if inference_mode == "directory":
             img_dir_or_object = path.join(images_dir, img[0])
         elif inference_mode == "images_dict":
