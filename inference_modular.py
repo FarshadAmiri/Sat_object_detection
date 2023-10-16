@@ -131,8 +131,8 @@ def ship_detection_single_image(image, model_path='models/best_model.pth', bbox_
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
 def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, confidence_threshold=0.9,
-                   scale_down_factor='adaptive', adaptive_scale_down_parameters = {'a': 0.2, 'b': 0.75, 'threshold': 1.5}, sahi_overlap_ratio=0.2,
-                   nms_iou_threshold=0.1, device='adaptive', output_dir=None, output_name="prediction",save_annotated_image=False,
+                   scale_down_factor='adaptive', adaptive_scale_down_parameters = {'a': 0.3, 'b': 0.1, 'threshold': 1.5}, sahi_overlap_ratio=0.33,
+                   nms_iou_threshold=0.15, device='adaptive', output_dir=None, output_name="prediction",save_annotated_image=False,
                    output_original_image=False, output_annotated_image=True, annotations=["score", "length", "coord"],
                    annotation_font=r"calibri.ttf",annotation_font_size=14, annotation_bbox_width=2):
     
@@ -265,7 +265,7 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
         if inference_mode == "directory":
             img_dir_or_object = path.join(images_dir, img[0])
         elif inference_mode == "images_dict":
-            img_dir_or_object = images_dict[img_name]["image"]
+            img_dir_or_object = images_dict[img[0]]["image"]
         elif inference_mode == "single_image":
             img_dir_or_object = single_image
         print(f"Processing {img[0]}")
