@@ -60,3 +60,14 @@ def verify_coords(coords, inference_mode):
         raise ValueError("""Wrong coordinations! Latitude is between -90 and 90 and Longitude is between -180 and 180. Also, the following format is required:\n[left, bottom, right, top]\nor in other words:\n[min Longitude , min Latitude , max Longitude , max Latitude]\nor in other words:\n[West Longitude , South Latitude , East Longitude , North Latitude]""")
     coords_verified = True
     return coords_verified, lon1, lat1, lon2, lat2
+
+
+def calculate_scale_down_factor(area, model_input_dim=768, a=0.2 , b=0.75, threshold=1.5):
+    average_dim =  math.sqrt(area)
+    dim_ratio = average_dim / model_input_dim
+    if dim_ratio > threshold:
+        dim_scaled_down = (a * average_dim) + b
+        scale_factor = average_dim / dim_scaled_down
+    else:
+        scale_factor = 1
+    return scale_factor

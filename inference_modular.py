@@ -130,9 +130,10 @@ def ship_detection_single_image(image, model_path='models/best_model.pth', bbox_
 
 # ship_detection_sahi function takes the model path and image in PIL.Image.Image format and outputs 
 # a dictionary with bboxes and respected scores after running Slicing Aid Hyper Inference (SAHI) on the image.
-def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, sahi_confidence_threshold=0.9,
-                        sahi_scale_down_factor='adaptive', sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None, output_name="prediction",
-                        save_annotated_image=True, output_original_image=True, output_annotated_image=False, annotations=["score", "length", "coord"]):
+def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coord_wgs84=None, model_input_dim=768, confidence_threshold=0.9,sahi_scale_down_factor='adaptive',
+                   sahi_overlap_ratio=0.2, nms_iou_threshold=0.1, device='adaptive', output_dir=None, output_name="prediction",save_annotated_image=False,
+                   output_original_image=False, output_annotated_image=True, annotations=["score", "length", "coord"], annotation_font=r"calibri.ttf",
+                   annotation_font_size=14, annotation_bbox_width=2):
     
     # Check data validity (images_dir and images_objects)
     if type(images) == dict:
@@ -167,13 +168,12 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
                             if not path.exists(output_dir):
                                 makedirs(output_dir)
                         img_mask = path.join(output_dir, f"{path.splitext(filename)[0]}_pred{path.splitext(filename)[1]}")
-                    img_mask = 0
+                    else:
+                        img_mask = 0
                     img_size = Image.open(path.join(images_dir, filename)).size
                     images_data.append([img_name, img_mask, img_size])   #image_name= ok   img_mask = 0 or full_out_dir
             break
-        del img, img_mask, img_size
     
-    ### UNDER DEVELOPMENT
     # Preparing data in case images_dict is given.
     elif inference_mode == "images_dict":
         images_names = list(images_dict.keys())
@@ -221,7 +221,8 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
         img_name = output_name
         
         images_data.append([img_name, img_mask, img_size])   #image_name= ok   img_mask = 0 or full_out_dir
-    ### UNDER DEVELOPMENT
+
+    del img_name, img_mask, img_size
 
     # Set pytorch device
     if device == 'adaptive':
@@ -231,15 +232,30 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
 
     # transform = tv2.Compose([tv2.ToImageTensor(), tv2.ConvertImageDtype()])
 
-    if sahi_scale_down_factor == 'adaptive':
-        for img in images_data:
+    for img in images_data:
+        if 'adaptive' in sahi_scale_down_factor:
+            if "-c" in sahi_scale_down_factor:
+                try:
+                    c = float(sahi_scale_down_factor.split("-c")[1])
+                except:
+                    pass
+            else:
+                c = 10
             w, h = img[2]
-            p = (w * h) // (model_input_dim * model_input_dim)
-            if p > 10:
-                img_sahi_scale_down_factor = int(round(math.sqrt(p / 20), 0))
+            area_ratio = (w * h) // (model_input_dim * model_input_dim)
+            if area_ratio > c:
+                img_sahi_scale_down_factor = int(round(math.sqrt(area_ratio / (2*c)), 0))
             else:
                 img_sahi_scale_down_factor = 1
             img.append(img_sahi_scale_down_factor)
+
+        elif type(sahi_scale_down_factor) in [int, float]:
+            img.append(sahi_scale_down_factor)
+        else:
+            try:
+                img.append(float(sahi_scale_down_factor))
+            except:
+                raise ValueError("""sahi_scale_down_factor sould be one of the below:\n"adaptive"\n"adaptive-cx" which x can be any number\nA float or integer value""")
     
     if type(model_or_model_path) == str:
         model = torch.load(model_or_model_path, map_location = device)
@@ -247,7 +263,7 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
         model = AutoDetectionModel.from_pretrained(
         model_type='torchvision',
         model=model,
-        confidence_threshold=sahi_confidence_threshold,
+        confidence_threshold=confidence_threshold,
         image_size=model_input_dim,
         device=device, # or "cuda:0"
         load_at_init=True,)
@@ -266,7 +282,7 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
                                 scale_down_factor=img[3], 
                                 model_input_dim=model_input_dim, 
                                 device=device, 
-                                confidence_threshold=sahi_confidence_threshold, 
+                                confidence_threshold=confidence_threshold, 
                                 overlap_ratio=sahi_overlap_ratio,
                                 output_scaled_down_image=any([save_annotated_image, output_original_image, output_annotated_image])
                                     )
@@ -283,20 +299,20 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
                 result["n_obj"] = 0
                 result["bboxes"] = bboxes
                 result["scores"] = scores
-                result["sahi_scaled_down_image"] = sahi_scaled_down_image
+                result["original_image"] = sahi_scaled_down_image
                 if bbox_coord_wgs84 != None:
                     result["ships_long_lat"] = []
-                    result["ships_length"] = []
+                    result["ships_lengths"] = []
                     result["ships_bbox_dimensions"] = []
             else:
                 result[img[0]]["n_obj"] = 0
                 result[img[0]]["bboxes"] = bboxes
                 result[img[0]]["scores"] = scores
-                result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
+                result[img[0]]["original_image"] = sahi_scaled_down_image
             if bbox_coord_wgs84 != None:
                 if bbox_coord_wgs84.get(img[0]) != None:
                     result[img[0]]["ships_long_lat"] = []
-                    result[img[0]]["ships_length"] = []
+                    result[img[0]]["ships_lengths"] = []
                     result[img[0]]["ships_bbox_dimensions"] = []
             continue
 
@@ -314,14 +330,14 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
             result["bboxes"] = bboxes_nms
             result["scores"] = scores_nms
             if output_original_image:
-                result["sahi_scaled_down_image"] = sahi_scaled_down_image
+                result["original_image"] = sahi_scaled_down_image
         else:
             result[img[0]] = dict()
             result[img[0]]["n_obj"] = len(bboxes_nms)
             result[img[0]]["bboxes"] = bboxes_nms
             result[img[0]]["scores"] = scores_nms
             if output_original_image:
-                result[img[0]]["sahi_scaled_down_image"] = sahi_scaled_down_image
+                result[img[0]]["original_image"] = sahi_scaled_down_image
         
         # Calculating the longitude and latitude of each bbox's center as will as the detected ship length in meters (if bbox_coord_wgs84 is given):coords_verified = False
         coords_verified = False
@@ -330,7 +346,7 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
                 if type(bbox_coord_wgs84) in [list, tuple]:
                     coords_verified, lon1, lat1, lon2, lat2 = verify_coords(coords=bbox_coord_wgs84, inference_mode=inference_mode)
                 elif type(bbox_coord_wgs84) == dict:
-                    coords_verified, lon1, lat1, lon2, lat2 = verify_coords(coords=bbox_coord_wgs84[bbox_coord_wgs84.keys()[0]], inference_mode=inference_mode) 
+                    coords_verified, lon1, lat1, lon2, lat2 = verify_coords(coords=bbox_coord_wgs84[list(bbox_coord_wgs84.keys())[0]], inference_mode=inference_mode) 
             elif bbox_coord_wgs84.get(img[0]) != None:
                 coords_verified, lon1, lat1, lon2, lat2 = verify_coords(coords=bbox_coord_wgs84[img[0]], inference_mode=inference_mode) 
 
@@ -365,11 +381,11 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
 
                 if inference_mode == "single_image":
                     result["ships_long_lat"] = ships_coord
-                    result["ships_length"] = ships_length
+                    result["ships_lengths"] = ships_length
                     result["ships_bbox_dimensions"] = ships_bbox_dimensions
                 else:
                     result[img[0]]["ships_long_lat"] = ships_coord
-                    result[img[0]]["ships_length"] = ships_length
+                    result[img[0]]["ships_lengths"] = ships_length
                     result[img[0]]["ships_bbox_dimensions"] = ships_bbox_dimensions
         
         # Drawing bbox and save image
@@ -377,14 +393,16 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
             image_save_name = img[1]
             if inference_mode == "single_image":
                 annotated_image = draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
-                        lengths=result.get("ships_length"), ships_coords=result.get("ships_long_lat"),
-                        annotations=annotations, save=save_annotated_image, image_save_name=image_save_name, output_annotated_image=output_annotated_image)
+                        lengths=result.get("ships_lengths"), ships_coords=result.get("ships_long_lat"),
+                        annotations=annotations, save=save_annotated_image, image_save_name=image_save_name, output_annotated_image=output_annotated_image,
+                        font=annotation_font, font_size=annotation_font_size, bbox_width=annotation_bbox_width)
                 if output_annotated_image:
                     result["annotated_image"] = annotated_image
             else:
                 annotated_image = draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
-                                  lengths=result[img[0]].get("ships_length"), ships_coords=result[img[0]].get("ships_long_lat"),
-                                  annotations=annotations, save=save_annotated_image, image_save_name=image_save_name, output_annotated_image=output_annotated_image)
+                                  lengths=result[img[0]].get("ships_lengths"), ships_coords=result[img[0]].get("ships_long_lat"),
+                                  annotations=annotations, save=save_annotated_image, image_save_name=image_save_name, output_annotated_image=output_annotated_image,
+                                  font=annotation_font, font_size=annotation_font_size, bbox_width=annotation_bbox_width)
                 if output_annotated_image:
                     result[img[0]]["annotated_image"] = annotated_image
     del model

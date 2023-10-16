@@ -341,7 +341,7 @@ def draw_bboxes_2(image, bbox_list, score_list, length_list=None, output_file_na
 
 
 def draw_bbox_torchvision(image, bboxes, scores, lengths=None,ships_coords=None, annotations=["score", "length", "coord"],
-                           save=True, image_save_name=None, output_annotated_image=False):
+                           save=True, image_save_name=None, output_annotated_image=False, font_size=14, font=r"calibri.ttf", bbox_width=2):
     # w, h = image.size
     # thick = int((h + w) // 512)
     # font_size = int((h + w) // 64)
@@ -350,7 +350,7 @@ def draw_bbox_torchvision(image, bboxes, scores, lengths=None,ships_coords=None,
                (40, 210, 150), (140, 250, 15), (230, 255, 100), (200, 230, 255), (15, 255, 230), (255, 150, 0), (255, 255, 255),
               (251, 252, 11),  (40, 220, 10),  (220, 220, 0),(40, 210, 150), (230, 255, 100), (15, 255, 230), ]
     while len(colors) < len(scores):
-        colors.append(colors[random.randint(0,len(colors))])
+        colors.append(colors[random.randint(0,len(colors)-1)])
 
     # Convert PIL.Image.Image to a torch.tensor
     array = np.asarray(image)
@@ -375,9 +375,9 @@ def draw_bbox_torchvision(image, bboxes, scores, lengths=None,ships_coords=None,
 
     # draw bounding boxes with fill color
     try:
-        annotated_image= draw_bounding_boxes(image_tensor, bboxes, width=3, labels= labels, font_size=14, font=r"c:\WINDOWS\Fonts\ARIBLK.TTF", colors=colors[:len(scores)])
+        annotated_image= draw_bounding_boxes(image_tensor, bboxes, width=bbox_width, labels= labels, font_size=font_size, font=font, colors=colors[:len(scores)])
     except:
-        annotated_image= draw_bounding_boxes(image_tensor, bboxes, width=3, labels= labels, colors=colors[:len(scores)])
+        annotated_image= draw_bounding_boxes(image_tensor, bboxes, width=bbox_width, labels= labels, colors=colors[:len(scores)])
 
     annotated_image = torchvision.transforms.ToPILImage()(annotated_image)
     if save:
