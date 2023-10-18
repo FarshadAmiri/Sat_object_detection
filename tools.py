@@ -69,5 +69,5 @@ def calculate_scale_down_factor(area, model_input_dim=768, a=0.2 , b=0.75, thres
         scale_factor = (a * dim_ratio) + b
     else:
         scale_factor = 1
-    # scale_factor = max(scale_factor, 1)
+    scale_factor = max(scale_factor, 1)
     return scale_factor
