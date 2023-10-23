@@ -5,7 +5,6 @@ import datetime
 from PIL import Image
 import numpy as np
 
-
 def haversine_distance(lon1, lat1, lon2, lat2):
     """
     Calculate the great circle distance between two points
