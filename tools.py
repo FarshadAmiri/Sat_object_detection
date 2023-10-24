@@ -26,6 +26,23 @@ def haversine_distance(lon1, lat1, lon2, lat2):
     return distance
 
 
+def bbox_geometry_calculator(bbox):
+    #get coords of all four points of the bbox, width, height and area of the bbox
+    lon1, lat1, lon2, lat2 = bbox
+    
+    # point_sw = (lon1, lat1)
+    # point_ne =(lon2, lat2)
+    # point_nw = (lon1, lat2)
+    # point_se = (lon2, lat1)
+    
+    width =  haversine_distance(lon1, lat1, lon2, lat1)
+    height = haversine_distance(lon1, lat1, lon1, lat2)
+    area = width * height
+    
+    return width, height, area
+
+
+
 def shamsi_date_time():
     # Get the current Gregorian date and time
     today = jdatetime.date.today()
@@ -70,3 +87,28 @@ def calculate_scale_down_factor(area, model_input_dim=768, a=0.2 , b=0.75, thres
         scale_factor = 1
     scale_factor = max(scale_factor, 1)
     return scale_factor
+
+
+def bbox_divide(bbox, lon_step=0.05, lat_step=0.05):
+    m = str(lon_step)[::-1].find('.')
+    lon_no_steps = int(w_bbox//lon_step)
+    lat_no_steps = int(h_bbox//lat_step)
+    int(h_bbox//lat_step)
+    lon1, lat1, lon2, lat2 = bbox
+    h_bbox = lat2 - lat1
+    w_bbox = lon2 - lon1
+    bboxes = []
+    for h_partition in range(lat_no_steps):
+        lat1 += h_partition * lat_step
+        lat1 = round(lat1, m)
+        lat2 = lat1 + lat_step
+        lat2 = round(lat2, m)
+        bboxes_row = []
+        for w_partition in range(lon_no_steps):
+            lon1 += w_partition * lon_step
+            lon1 = round(lon1, m)
+            lon2 = lon1 + lon_step
+            lon2 = round(lon2, m)
+            bboxes_row.append([lon1, lat1, lon2, lat2])
+        bboxes.append(bboxes_row)
+    return bboxes, lon_no_steps, lat_no_steps
