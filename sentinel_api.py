@@ -1,30 +1,55 @@
 import logging
-from sentinelhub import MimeType, CRS, BBox, DataCollection, bbox_to_dimensions
-from sentinelhub import SHConfig, SentinelHubRequest
-
+from sentinelhub import MimeType, CRS, BBox, DataCollection, bbox_to_dimensions, SHConfig, SentinelHubRequest
+from oauthlib.oauth2 import BackendApplicationClient
+from requests_oauthlib import OAuth2Session
+from tools import bbox_geometry_calculator, bbox_divide
 import numpy as np
-from matplotlib import pyplot as plt
 from PIL import Image
+import os
+import cv2
+from tqdm import tqdm
+ 
+#  Logging
+logging.basicConfig(level=logging.INFO)
+
+# Your client credentials
+client_id = 'e0b127dc-fbb5-4151-8946-96d8728003c7'
+client_secret = '4Xy2[Bc#?&L!xbha(XB6*%Xbry,BU-cZA0Dd9n,W'
+
+# Create a session
+# client = BackendApplicationClient(client_id=client_id)
+# oauth = OAuth2Session(client=client)
+
+config = SHConfig(instance_id='',
+         sh_client_id = client_id,
+         sh_client_secret = client_secret,
+         sh_base_url='https://services.sentinel-hub.com',
+         sh_token_url='https://services.sentinel-hub.com/oauth/token',)
+
+# Get token for the session
+# token = oauth.fetch_token(token_url='https://services.sentinel-hub.com/oauth/token',
+#                           client_secret=client_secret)
+
+# # All requests using this session will have an access token automatically added
+# resp = oauth.get("https://services.sentinel-hub.com/oauth/tokeninfo")
+# print(resp.content)
+
+# save sentinel config
+# config.instance_id = "my-instance-id"
+# config.save("my-profile")
 
 
-def sentinel_get_image(bbox, size, data_collection, config):
-    """
-    This function returns a Sentinel Hub request object for Sentinel-2 imagery.
-    """
-    return SentinelHubRequest(
-        bbox=bbox,
-        time=('2017-12-01', '2017-12-31'),
-        data_collection=data_collection,
-        bands=['B04', 'B03', 'B02'],
-        maxcc=0.2,
-        mosaicking_order='mostRecent',
-        config=config
-
-
-
-
-def get_sentinel_image(bbox, timeline, data_collection=DataCollection.SENTINEL2_L2A, maxcc=0.8, mosaicking_order = 'mostRecent', resolution=10,
-                       img_size=None, save_images=False, data_folder="sentinel-hub"):
+def sentinel_single_image(bbox, timeline, config, data_collection=DataCollection.SENTINEL2_L2A, maxcc=0.8, mosaicking_order = 'mostRecent', resolution=10,
+                       img_size=None, return_numpy=False, verbose=False, save_image=False, save_dir="sentinel-hub"):
+    
+    if save_image and save_dir is None:
+        raise ValueError("save_dir must be specified when save_image is True")
+    
+    # Verbose printout
+    if verbose:
+        w, h, area = bbox_geometry_calculator(bbox)
+        print(f"Territory dimensions: {w:,.0f}m x {h:,.0f}m | Area: {(area * 1e-6):,.0f} km^2")
+    
     evalscript_true_color = """
         //VERSION=3
 
@@ -46,19 +71,21 @@ def get_sentinel_image(bbox, timeline, data_collection=DataCollection.SENTINEL2_
     """
     # Set resolution and region bb/size.
     region_bbox = BBox(bbox = bbox, crs = CRS.WGS84)
-    region_size = bbox_to_dimensions(region_bbox, resolution = resolution)
-    output_img_size = region_size if img_size == None else img_size
-    print(f'Requesting images with {resolution}m resolution and region size of {output_img_size} pixels')
+    if img_size == None:
+        region_size = bbox_to_dimensions(region_bbox, resolution = resolution)
+    else:
+        region_size = img_size
+    print(f'Requesting images with {resolution}m resolution and region size of {region_size} pixels') if verbose else None
+    
     # Build the request.
     request_true_color = SentinelHubRequest(
-        data_folder = data_folder,
         evalscript = evalscript_true_color,
         input_data = [
             SentinelHubRequest.input_data(
                 data_collection = data_collection,
                 time_interval = timeline,
                 mosaicking_order = mosaicking_order,
-                # maxcc = maxcc,
+                maxcc = maxcc,
             )
         ], 
         responses = [
@@ -66,21 +93,92 @@ def get_sentinel_image(bbox, timeline, data_collection=DataCollection.SENTINEL2_
         ],
         bbox = region_bbox,
         # resolution = 10,
-        size = output_img_size,
+        size = region_size,
         config = config,
     )
 
     # By construction, only one image at time is returned.
-    true_color_imgs = request_true_color.get_data(save_data=save_images)
-    image = Image.fromarray(true_color_imgs[0].astype('uint8')).convert('RGB')
-    return image
+    image_numpy = request_true_color.get_data(save_data=False)[0]
+    if save_image or (return_numpy == False):
+        image = Image.fromarray(image_numpy.astype('uint8')).convert('RGB')
+    
+    if save_image:
+        image.save(save_dir)
+    
+    return image_numpy if return_numpy else image
 
 
 
-# bbox = [58.488808,23.630371,58.573265,23.699550]
-# time_interval = ['2023-07-05', '2023-09-25']
-# images = request_images(coords_wgs84=bbox, timeline=time_interval)
 
+def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollection.SENTINEL2_L2A, mosaicking_order = 'mostRecent', maxcc=0.8,
+                      resolution=5, img_size=(2500,2500), lon_lat_step=(0.05, 0.05), in_memory=True, temp_dir=r"sentinel-tmp", save_concat_image=False,
+                      concat_image_dir=r"sentinel-concat", concat_image_name="default"):
+    # Verbose printout
+    w, h, area = bbox_geometry_calculator(bbox_coords)
+    lon1_ref, lat1_ref, lon2_ref, lat2_ref = bbox_coords
+    bboxes = bbox_divide(bbox_coords, lon_step=lon_lat_step[0], lat_step=lon_lat_step[1])
+    total_no_bboxes = int (len(bboxes) * len(bboxes[0]))
+    image_width =  int((lon2_ref - lon1_ref) * 2500 / lon_lat_step[0])
+    image_height = int((lat2_ref - lat1_ref) * 2500 / lon_lat_step[1])
+    print(f"Territory dimensions: {w:,.0f}m x {h:,.0f}m | Area: {(area * 1e-6):,.0f} km^2")
+    print(f"Concatenated image will be in size of {image_width} x {image_height} p")
+    print("There are {} bboxes to download".format(total_no_bboxes))
+    
+    # Create output folder
+    if in_memory == False:
+        if temp_dir == None:
+            raise ValueError("temp_dir must be specified if in_memory is False")
+        tmp_subfolder = f"{timeline[0]}_{timeline[1]}-{bbox_coords}-res{resolution}-{img_size}-{mosaicking_order}-{data_collection.catalog_id}-maxcc{maxcc}"
+        output_dir = os.path.join(temp_dir, tmp_subfolder)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
-def sentinel_get_area(bbox, timeline, data_collection, config):
-    pass
+    # Download images from sentinel-hub
+    images = []
+    print()
+    pbar = tqdm(total=total_no_bboxes, desc="dl from sentinel-hub")
+    for i, bbox_row in enumerate(bboxes):
+        images_row = []
+        for j, bbox in enumerate(bbox_row):
+            img = sentinel_single_image(bbox, timeline, config, data_collection=data_collection, maxcc=maxcc, mosaicking_order = mosaicking_order,
+                                     resolution=resolution, img_size=img_size, return_numpy=True, verbose=False)
+            if in_memory:
+                images_row.append(img)
+            else:
+                tmp_img = Image.fromarray(img.astype('uint8')).convert('RGB')
+                tmp_img.save(f"{output_dir}" + f"/{i}_{j}" + ".jpg")
+            pbar.update(1)
+            pbar.set_description_str(f"dl from sentinel-hub | bbox: {bbox}")
+        images.append(images_row)
+        
+    print("All images are downloaded into {} - concatenating images is in progress...".format("memory" if in_memory else "disk"))
+    if in_memory:     
+        images_horizontally = []
+        for images_row in images:
+            im_v = cv2.hconcat(images_row)
+            images_horizontally.append(im_v)
+            
+        concat_image = cv2.vconcat(images_horizontally[::-1])
+        concat_image = Image.fromarray(concat_image.astype('uint8')).convert('RGB')
+    else:
+        # images_names_list = os.listdir(output_dir)
+        n_rows, n_cols = len(bboxes), len(bboxes[0])
+        images_horizontally = []
+        for row in range(n_rows):
+            row_images_path = [os.path.join(output_dir, f"{row}_{col}.jpg") for col in range(n_cols)]
+            row_images = [np.array(Image.open(img_path)) for img_path in row_images_path]
+            images_horizontally.append(cv2.hconcat(row_images))
+
+        concat_image = cv2.vconcat(images_horizontally[::-1])
+        concat_image = Image.fromarray(concat_image.astype('uint8')).convert('RGB')
+    print("Done!")
+    
+    if save_concat_image:
+        if concat_image_dir is None:
+            raise ValueError("concat_image_dir must be specified if save_concat_image is True")
+        elif os.path.exists(concat_image_dir) == False:
+            os.mkdir(concat_image_dir)
+        concat_image_name = f"{timeline[0]}_{timeline[1]}-{bbox_coords}-res{resolution}-{img_size}-{mosaicking_order}-{data_collection.catalog_id}-maxcc{maxcc}.jpg" if concat_image_name == "default" else concat_image_name
+        concat_image.save(os.path.join(concat_image_dir, concat_image_name))
+        print("concatenated image saved in {}".format(concat_image_dir))
+    return concat_image
