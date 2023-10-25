@@ -90,7 +90,6 @@ def calculate_scale_down_factor(area, model_input_dim=768, a=0.2 , b=0.75, thres
 
 
 def bbox_divide(bbox, lon_step=0.05, lat_step=0.05):
-    bbox = [58.5, 23.6, 58.7, 23.8]
     lon_step=0.05
     lat_step=0.05
 
@@ -98,8 +97,8 @@ def bbox_divide(bbox, lon_step=0.05, lat_step=0.05):
     lon1_ref, lat1_ref, lon2_ref, lat2_ref = bbox
     h_bbox = lat2_ref - lat1_ref
     w_bbox = lon2_ref - lon1_ref
-    lon_no_steps = int(w_bbox//lon_step)
-    lat_no_steps = int(h_bbox//lat_step)
+    lon_no_steps = int(w_bbox//lon_step) + 1
+    lat_no_steps = int(h_bbox//lat_step) + 1
     bboxes = []
     for h_partition in range(lat_no_steps):
         lat1 = lat1_ref + h_partition * lat_step
