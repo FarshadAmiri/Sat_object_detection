@@ -405,10 +405,3 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
 
     del model
     return result
-
-
-# remaining modules: 
-# 2- csv or json result saving module [image hyperlink - time inteval - bbox coords - n_obj - lengths sorted dscending]
-# 3- API module: takes bbox of an area - splitting it to allowable areas (sentinel-gub constraints) - download images of
-# area in given time period [maybe splitting time into possible time intervals] and request images of all those from sentinel 
-# api and run inference on all of them. result saved for each time interval and bbox coords [hyperlink the images in csv]

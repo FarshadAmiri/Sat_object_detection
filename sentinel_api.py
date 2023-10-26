@@ -10,6 +10,7 @@ import cv2
 from tqdm import tqdm
  
 #  Logging
+# ------------------------------------------------------------------------------
 logging.basicConfig(level=logging.INFO)
 
 # Your client credentials
@@ -39,6 +40,8 @@ config = SHConfig(instance_id='',
 # config.save("my-profile")
 
 
+# define a function to download a single image from sentinel hub
+# ---------------------------------------------------------------------------------
 def sentinel_single_image(bbox, timeline, config, data_collection=DataCollection.SENTINEL2_L2A, maxcc=0.8, mosaicking_order = 'mostRecent', resolution=10,
                        img_size=None, return_numpy=False, verbose=False, save_image=False, save_dir="sentinel-hub"):
     
@@ -109,10 +112,11 @@ def sentinel_single_image(bbox, timeline, config, data_collection=DataCollection
 
 
 
-
+# define a function to download a high-resolution image of a vast area from sentinel hub
+# ---------------------------------------------------------------------------------------
 def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollection.SENTINEL2_L2A, mosaicking_order = 'mostRecent', maxcc=0.8,
                       resolution=5, img_size=(2500,2500), lon_lat_step=(0.05, 0.05), in_memory=True, temp_dir=r"sentinel-tmp", save_concat_image=False,
-                      concat_image_dir=r"sentinel-concat", concat_image_name="default"):
+                      concat_image_dir=r"sentinel-concat", concat_image_name="default", delete_temp=False):
     # Verbose printout
     w, h, area = bbox_geometry_calculator(bbox_coords)
     lon1_ref, lat1_ref, lon2_ref, lat2_ref = bbox_coords
@@ -137,6 +141,7 @@ def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollec
     images = []
     print()
     pbar = tqdm(total=total_no_bboxes, desc="dl from sentinel-hub")
+    image_bbox_map = ""
     for i, bbox_row in enumerate(bboxes):
         images_row = []
         for j, bbox in enumerate(bbox_row):
@@ -147,9 +152,14 @@ def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollec
             else:
                 tmp_img = Image.fromarray(img.astype('uint8')).convert('RGB')
                 tmp_img.save(f"{output_dir}" + f"/{i}_{j}" + ".jpg")
+                image_bbox_map += f"{i}_{j} = {bbox}\n"
             pbar.update(1)
             pbar.set_description_str(f"dl from sentinel-hub | bbox: {bbox}")
         images.append(images_row)
+        
+    if in_memory == False and (delete_temp==False):
+        with open(os.path.join(output_dir, "image_bbox_map.txt"), "w") as f:
+            f.write(image_bbox_map)
         
     print("All images are downloaded into {} - concatenating images is in progress...".format("memory" if in_memory else "disk"))
     if in_memory:     
@@ -161,7 +171,6 @@ def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollec
         concat_image = cv2.vconcat(images_horizontally[::-1])
         concat_image = Image.fromarray(concat_image.astype('uint8')).convert('RGB')
     else:
-        # images_names_list = os.listdir(output_dir)
         n_rows, n_cols = len(bboxes), len(bboxes[0])
         images_horizontally = []
         for row in range(n_rows):
@@ -172,6 +181,12 @@ def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollec
         concat_image = cv2.vconcat(images_horizontally[::-1])
         concat_image = Image.fromarray(concat_image.astype('uint8')).convert('RGB')
     print("Done!")
+
+    if delete_temp:
+        for filename in os.listdir(output_dir):
+            os.remove(os.path.join(output_dir, filename)) 
+        os.rmdir(output_dir)
+        print("Temp")
     
     if save_concat_image:
         if concat_image_dir is None:
