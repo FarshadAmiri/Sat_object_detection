@@ -251,7 +251,8 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
 
     if type(model_or_model_path) == str:
         model = torch.load(model_or_model_path, map_location = device)
-
+        
+        print("\nThe model takes a while to load for the first inference.")
         model = AutoDetectionModel.from_pretrained(
         model_type='torchvision',
         model=model,
@@ -269,7 +270,8 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
         elif inference_mode == "single_image":
             img_dir_or_object = single_image
         print(f"Processing {img[0]}")
-        sahi_result = sahi_slicing_inference(image_or_dir=img_dir_or_object, 
+        sahi_result = sahi_slicing_inference(
+                                image_or_dir=img_dir_or_object, 
                                 model=model, 
                                 scale_down_factor=img[3], 
                                 model_input_dim=model_input_dim, 
