@@ -6,6 +6,7 @@ from tools import bbox_geometry_calculator, bbox_divide
 import numpy as np
 from PIL import Image
 import os
+import math
 import cv2
 from tqdm import tqdm
  
@@ -119,14 +120,19 @@ def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollec
                       concat_image_dir=r"sentinel-concat", concat_image_name="default", delete_temp=False):
     # Verbose printout
     w, h, area = bbox_geometry_calculator(bbox_coords)
+    if area > 1500e6:
+        raise ValueError(f"Area of the territory is too big: {(area * 1e-6):,.0f} km^2! Territory's area shouldn't exceed 1500 km^2.")
     lon1_ref, lat1_ref, lon2_ref, lat2_ref = bbox_coords
     bboxes = bbox_divide(bbox_coords, lon_step=lon_lat_step[0], lat_step=lon_lat_step[1])
     total_no_bboxes = int (len(bboxes) * len(bboxes[0]))
-    image_width =  int((lon2_ref - lon1_ref) * 2500 / lon_lat_step[0])
-    image_height = int((lat2_ref - lat1_ref) * 2500 / lon_lat_step[1])
+    image_width =  int((lon2_ref - lon1_ref) * img_size[0] / lon_lat_step[0])
+    image_height = int((lat2_ref - lat1_ref) * img_size[1] / lon_lat_step[1])
+    image_pixels = image_width * image_height
     print(f"Territory dimensions: {w:,.0f}m x {h:,.0f}m | Area: {(area * 1e-6):,.0f} km^2")
     print(f"Concatenated image will be in size of {image_width} x {image_height} p")
     print("There are {} bboxes to download".format(total_no_bboxes))
+    if image_pixels > 178e6:
+        raise ValueError(f"Image size is too big for inference: {image_pixels:,.0f} pixels! Image size shouldn't exceed {178956970:,.0f} pixels because of inference limitations.\nTry reducing each dimension by {(math.sqrt(image_pixels/178000000)-1)*100:.1f}%.")
     
     # Create output folder
     if in_memory == False:

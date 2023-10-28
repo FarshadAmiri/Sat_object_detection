@@ -282,39 +282,49 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
                                     )
         bboxes = sahi_result["bboxes"]
         scores = sahi_result["scores"]
+        n_obj_sahi = sahi_result["n_obj"]
         scaled_down_image_size = sahi_result["scaled_down_image_size"]
         sahi_scaled_down_image = sahi_result.get("scaled_down_image")
         # image = transform(image) 
+
+        # if bboxes.dim() == 1:
+        #     result[img[0]] = dict()
+        #     if inference_mode == "single_image":
+        #         result["n_obj"] = 0
+        #         result["bboxes"] = bboxes
+        #         result["scores"] = scores
+        #         result["original_image"] = sahi_scaled_down_image
+        #         if bbox_coord_wgs84 != None:
+        #             result["ships_long_lat"] = []
+        #             result["ships_lengths"] = []
+        #             result["ships_bbox_dimensions"] = []
+        #     else:
+        #         result[img[0]]["n_obj"] = 0
+        #         result[img[0]]["bboxes"] = bboxes
+        #         result[img[0]]["scores"] = scores
+        #         result[img[0]]["original_image"] = sahi_scaled_down_image
+        #     if bbox_coord_wgs84 != None:
+        #         if type(bbox_coord_wgs84) == dict:
+        #             if bbox_coord_wgs84.get(img[0]) != None:
+        #                 result[img[0]]["ships_long_lat"] = []
+        #                 result[img[0]]["ships_lengths"] = []
+        #                 result[img[0]]["ships_bbox_dimensions"] = []
+        #             elif type(bbox_coord_wgs84) == list:
+        #                 result["ships_long_lat"] = []
+        #                 result["ships_lengths"] = []
+        #                 result["ships_bbox_dimensions"] = []
+        #     continue
         
         # Perform Non-Max Suppression
-        if bboxes.dim() == 1:
-            result[img[0]] = dict()
-            if inference_mode == "single_image":
-                result["n_obj"] = 0
-                result["bboxes"] = bboxes
-                result["scores"] = scores
-                result["original_image"] = sahi_scaled_down_image
-                if bbox_coord_wgs84 != None:
-                    result["ships_long_lat"] = []
-                    result["ships_lengths"] = []
-                    result["ships_bbox_dimensions"] = []
-            else:
-                result[img[0]]["n_obj"] = 0
-                result[img[0]]["bboxes"] = bboxes
-                result[img[0]]["scores"] = scores
-                result[img[0]]["original_image"] = sahi_scaled_down_image
-            if bbox_coord_wgs84 != None:
-                if bbox_coord_wgs84.get(img[0]) != None:
-                    result[img[0]]["ships_long_lat"] = []
-                    result[img[0]]["ships_lengths"] = []
-                    result[img[0]]["ships_bbox_dimensions"] = []
-            continue
-
-        nms_result = nms(boxes=bboxes, scores=scores, iou_threshold=nms_iou_threshold)
-        bboxes = bboxes.numpy() 
-        bboxes_nms = []
-        bboxes_nms = np.array([bboxes[i] for i in nms_result])
-        scores_nms = np.array([scores[i] for i in nms_result])
+        if n_obj_sahi == 0:
+            bboxes_nms = np.array([], dtype=np.float32)
+            scores_nms = np.array([], dtype=np.float32)
+        else:
+            nms_result = nms(boxes=bboxes, scores=scores, iou_threshold=nms_iou_threshold)
+            bboxes = bboxes.numpy() 
+            bboxes_nms = []
+            bboxes_nms = np.array([bboxes[i] for i in nms_result])
+            scores_nms = np.array([scores[i] for i in nms_result])
         print(f"{len(bboxes_nms)} bboxes found in {img[0]}")
 
         # Output the result
@@ -373,30 +383,36 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
                     length = round(math.sqrt((h_ship_bbox ** 2) + (w_ship_bbox ** 2)), 1)
                 ships_length.append(length)
 
-                if inference_mode == "single_image":
-                    result["ships_long_lat"] = ships_coord
-                    result["ships_lengths"] = ships_length
-                    result["ships_bbox_dimensions"] = ships_bbox_dimensions
-                else:
-                    result[img[0]]["ships_long_lat"] = ships_coord
-                    result[img[0]]["ships_lengths"] = ships_length
-                    result[img[0]]["ships_bbox_dimensions"] = ships_bbox_dimensions
+            if inference_mode == "single_image":
+                result["ships_long_lat"] = ships_coord
+                result["ships_lengths"] = ships_length
+                result["ships_bbox_dimensions"] = ships_bbox_dimensions
+            else:
+                result[img[0]]["ships_long_lat"] = ships_coord
+                result[img[0]]["ships_lengths"] = ships_length
+                result[img[0]]["ships_bbox_dimensions"] = ships_bbox_dimensions
         
         # Drawing bbox and save image
         if save_annotated_image or output_annotated_image:
             image_save_name = img[1]
             if inference_mode == "single_image":
-                annotated_image = draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
-                        lengths=result.get("ships_lengths"), ships_coords=result.get("ships_long_lat"),
-                        annotations=annotations, save=save_annotated_image, image_save_name=image_save_name, output_annotated_image=output_annotated_image,
-                        font=annotation_font, font_size=annotation_font_size, bbox_width=annotation_bbox_width)
+                if n_obj_sahi == 0:
+                    annotated_image = sahi_scaled_down_image
+                else:
+                    annotated_image = draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
+                            lengths=result.get("ships_lengths"), ships_coords=result.get("ships_long_lat"),
+                            annotations=annotations, save=save_annotated_image, image_save_name=image_save_name, output_annotated_image=output_annotated_image,
+                            font=annotation_font, font_size=annotation_font_size, bbox_width=annotation_bbox_width)
                 if output_annotated_image:
                     result["annotated_image"] = annotated_image
             else:
-                annotated_image = draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
-                                  lengths=result[img[0]].get("ships_lengths"), ships_coords=result[img[0]].get("ships_long_lat"),
-                                  annotations=annotations, save=save_annotated_image, image_save_name=image_save_name, output_annotated_image=output_annotated_image,
-                                  font=annotation_font, font_size=annotation_font_size, bbox_width=annotation_bbox_width)
+                if n_obj_sahi == 0:
+                    annotated_image = sahi_scaled_down_image
+                else:
+                    annotated_image = draw_bbox_torchvision(image=sahi_scaled_down_image, bboxes=bboxes_nms, scores=scores_nms,
+                                    lengths=result[img[0]].get("ships_lengths"), ships_coords=result[img[0]].get("ships_long_lat"),
+                                    annotations=annotations, save=save_annotated_image, image_save_name=image_save_name, output_annotated_image=output_annotated_image,
+                                    font=annotation_font, font_size=annotation_font_size, bbox_width=annotation_bbox_width)
                 if output_annotated_image:
                     result[img[0]]["annotated_image"] = annotated_image
     
