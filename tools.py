@@ -102,15 +102,13 @@ def bbox_divide(bbox, lon_step=0.05, lat_step=0.05):
     bboxes = []
     for h_partition in range(lat_no_steps):
         lat1 = lat1_ref + h_partition * lat_step
-        lat1 = round(lat1, m)
         lat2 = lat1 + lat_step
-        lat2 = round(lat2, m)
+        lat1, lat2 = map(lambda x: round(x, m), [lat1, lat2])
         bboxes_row = []
         for w_partition in range(lon_no_steps):
             lon1 = lon1_ref + w_partition * lon_step
-            lon1 = round(lon1, m)
             lon2 = lon1 + lon_step
-            lon2 = round(lon2, m)
+            lon1, lon2 = map(lambda x: round(x, m), [lon1, lon2])
             bboxes_row.append([lon1, lat1, lon2, lat2])
         bboxes.append(bboxes_row)
     return bboxes

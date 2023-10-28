@@ -117,7 +117,7 @@ def sentinel_single_image(bbox, timeline, config, data_collection=DataCollection
 # ---------------------------------------------------------------------------------------
 def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollection.SENTINEL2_L2A, mosaicking_order = 'mostRecent', maxcc=0.8,
                       resolution=5, img_size=(2500,2500), lon_lat_step=(0.05, 0.05), in_memory=True, temp_dir=r"sentinel-tmp", save_concat_image=False,
-                      concat_image_dir=r"sentinel-concat", concat_image_name="default", delete_temp=False):
+                      concat_image_dir=r"sentinel-concat", concat_image_name="default", delete_temp=False, ignore_inference_size_error=False):
     # Verbose printout
     w, h, area = bbox_geometry_calculator(bbox_coords)
     if area > 1500e6:
@@ -129,10 +129,11 @@ def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollec
     image_height = int((lat2_ref - lat1_ref) * img_size[1] / lon_lat_step[1])
     image_pixels = image_width * image_height
     print(f"Territory dimensions: {w:,.0f}m x {h:,.0f}m | Area: {(area * 1e-6):,.0f} km^2")
-    print(f"Concatenated image will be in size of {image_width} x {image_height} p")
+    print(f"Concatenated image will be in size of {image_width} x {image_height} p (if all of its area is supported by sentinel-hub)")
     print("There are {} bboxes to download".format(total_no_bboxes))
-    if image_pixels > 178e6:
-        raise ValueError(f"Image size is too big for inference: {image_pixels:,.0f} pixels! Image size shouldn't exceed {178956970:,.0f} pixels because of inference limitations.\nTry reducing each dimension by {(math.sqrt(image_pixels/178000000)-1)*100:.1f}%.")
+    if ignore_inference_size_error == False:
+        if image_pixels > 178e6:
+            raise ValueError(f"Image size is too big for inference: {image_pixels:,.0f} pixels! Image size shouldn't exceed {178956970:,.0f} pixels because of inference limitations.\nTry reducing each dimension by {(math.sqrt(image_pixels/178000000)-1)*100:.1f}%.")
     
     # Create output folder
     if in_memory == False:

@@ -162,3 +162,6 @@ cython_debug/
 *.png
 *.pth
 inference_config.txt
+sentinel-concat-annotations/
+sentinel-concat/
+sentinel-tmp/
