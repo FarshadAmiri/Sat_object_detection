@@ -44,7 +44,7 @@ config = SHConfig(instance_id='',
 # define a function to download a single image from sentinel hub
 # ---------------------------------------------------------------------------------
 def sentinel_single_image(bbox, timeline, config, data_collection=DataCollection.SENTINEL2_L2A, maxcc=0.8, mosaicking_order = 'mostRecent', resolution=10,
-                       img_size=None, return_numpy=False, verbose=False, save_image=False, save_dir="sentinel-hub"):
+                       img_size=None, return_numpy=False, verbose=False, save_image=False, save_dir="sentinel-hub", evalscript=None):
     
     if save_image and save_dir is None:
         raise ValueError("save_dir must be specified when save_image is True")
@@ -54,25 +54,29 @@ def sentinel_single_image(bbox, timeline, config, data_collection=DataCollection
         w, h, area = bbox_geometry_calculator(bbox)
         print(f"Territory dimensions: {w:,.0f}m x {h:,.0f}m | Area: {(area * 1e-6):,.0f} km^2")
     
-    evalscript_true_color = """
-        //VERSION=3
+    if evalscript is None:
+        evalscript_true_color = """
+            //VERSION=3
 
-        function setup() {
-            return {
-                input: [{
-                    bands: ["B02", "B03", "B04"]
-                }],
-                output: {
-                    bands: 3
-                }
-            };
-        }
+            function setup() {
+                return {
+                    input: [{
+                        bands: ["B02", "B03", "B04"]
+                    }],
+                    output: {
+                        bands: 3
+                    }
+                    mosaicking: "TILE"
+                };
+            }
 
-        function evaluatePixel(sample) {
-            return [3.5*sample.B04, 3.5*sample.B03, 3.5*sample.B02];
+            function evaluatePixel(sample) {
+                return [3.5*sample.B04, 3.5*sample.B03, 3.5*sample.B02];
 
-        }
-    """
+            }
+        """
+        evalscript = evalscript_true_color
+
     # Set resolution and region bb/size.
     region_bbox = BBox(bbox = bbox, crs = CRS.WGS84)
     if img_size == None:
@@ -83,7 +87,7 @@ def sentinel_single_image(bbox, timeline, config, data_collection=DataCollection
     
     # Build the request.
     request_true_color = SentinelHubRequest(
-        evalscript = evalscript_true_color,
+        evalscript = evalscript,
         input_data = [
             SentinelHubRequest.input_data(
                 data_collection = data_collection,
@@ -115,7 +119,7 @@ def sentinel_single_image(bbox, timeline, config, data_collection=DataCollection
 
 # define a function to download a high-resolution image of a vast area from sentinel hub
 # ---------------------------------------------------------------------------------------
-def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollection.SENTINEL2_L2A, mosaicking_order = 'mostRecent', maxcc=0.8,
+def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollection.SENTINEL2_L2A, mosaicking_order = 'mostRecent', maxcc=0.8, evalscript=None,
                       resolution=5, img_size=(2500,2500), lon_lat_step=(0.05, 0.05), in_memory=True, temp_dir=r"sentinel-tmp", save_concat_image=False,
                       concat_image_dir=r"sentinel-concat", concat_image_name="default", delete_temp=False, ignore_inference_size_error=False):
     # Verbose printout
@@ -153,7 +157,7 @@ def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollec
         images_row = []
         for j, bbox in enumerate(bbox_row):
             img = sentinel_single_image(bbox, timeline, config, data_collection=data_collection, maxcc=maxcc, mosaicking_order = mosaicking_order,
-                                     resolution=resolution, img_size=img_size, return_numpy=True, verbose=False)
+                                        evalscript=evalscript ,resolution=resolution, img_size=img_size, return_numpy=True, verbose=False)
             if in_memory:
                 images_row.append(img)
             else:

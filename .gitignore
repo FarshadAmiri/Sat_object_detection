@@ -165,3 +165,4 @@ inference_config.txt
 sentinel-concat-annotations/
 sentinel-concat/
 sentinel-tmp/
+*.pb
