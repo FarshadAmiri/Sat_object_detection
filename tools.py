@@ -6,6 +6,7 @@ from PIL import Image
 import numpy as np
 import requests
 import os
+from io import BytesIO
 
 def haversine_distance(lon1, lat1, lon2, lat2):
     """
@@ -124,7 +125,8 @@ def xyz2bbox(x,y,z):
     return coords
 
 
-def sentinel_url_xyz(x, y, z, start=None, end=None, n_days_before_date=None, date=None, save_img=False, output_dir="", img_name=None, output_img=True):
+def sentinel_url_xyz(x, y, z, start=None, end=None, n_days_before_date=None, date=None, save_img=False,
+                     output_dir="", img_name=None, output_img=True):
     if n_days_before_date != None:
         if date == None:
             end = datetime.datetime.now()
@@ -152,7 +154,7 @@ def sentinel_url_xyz(x, y, z, start=None, end=None, n_days_before_date=None, dat
     
     response = requests.get(url)
     if output_img:
-        img = Image.open(response)
+        img = Image.open(BytesIO(response.content))
     # Save the image
     if save_img:
         if img_name == None:
@@ -167,7 +169,8 @@ def sentinel_url_xyz(x, y, z, start=None, end=None, n_days_before_date=None, dat
     return
 
 
-def sentinel_url_longlat(lonmin, latmin, lonmax, latmax, start=None, end=None, n_days_before_date=None, date=None, save_img=False, output_dir="", img_name=None, output_img=True):
+def sentinel_url_longlat(lonmin, latmin, lonmax, latmax, start=None, end=None, n_days_before_date=None, date=None,
+                         save_img=False, output_dir="", img_name=None, output_img=True):
     if n_days_before_date != None:
         if date == None:
             end = datetime.datetime.now()
@@ -194,7 +197,7 @@ def sentinel_url_longlat(lonmin, latmin, lonmax, latmax, start=None, end=None, n
     
     response = requests.get(url)
     if output_img:
-        img = Image.open(response)
+        img = Image.open(BytesIO(response.content))
     # Save the image
     if save_img:
         if img_name == None:
