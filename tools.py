@@ -169,7 +169,7 @@ def sentinel_url_xyz(x, y, z, start=None, end=None, n_days_before_date=None, dat
     return
 
 
-def sentinel_url_longlat(lonmin, latmin, lonmax, latmax, start=None, end=None, n_days_before_date=None, date=None,
+def sentinel_url_longlat(bbox_coords, start=None, end=None, n_days_before_date=None, date=None,
                          save_img=False, output_dir="", img_name=None, output_img=True, output_url=False):
     if n_days_before_date != None:
         if date == None:
@@ -193,6 +193,7 @@ def sentinel_url_longlat(lonmin, latmin, lonmax, latmax, start=None, end=None, n
     start_formatted = datetime.datetime.strftime(start, "%Y-%m-%dT%H:%M:%SZ")
     end_formatted = datetime.datetime.strftime(end, "%Y-%m-%dT%H:%M:%SZ")
 
+    lonmin, latmin, lonmax, latmax = bbox_coords
     url = fr"http://services.sentinel-hub.com/v1/wms/cd280189-7c51-45a6-ab05-f96a76067710?service=WMS&request=GetMap&layers=1_TRUE_COLOR&styles=&format=image%2Fpng&transparent=true&version=1.1.1&showlogo=false&additionalParams=%5Bobject%20Object%5D&name=Sentinel-2&height=256&width=256&errorTileUrl=%2Fimage-browser%2Fstatic%2Fmedia%2FbrokenImage.ca65e8ca.png&pane=activeLayer&maxcc=20&time={start_formatted}/{end_formatted}&srs=EPSG%3A4326&bbox={lonmin},{latmin},{lonmax},{latmax}"
     
     response = requests.get(url)
