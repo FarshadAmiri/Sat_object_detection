@@ -170,7 +170,7 @@ def sentinel_url_xyz(x, y, z, start=None, end=None, n_days_before_date=None, dat
 
 
 def sentinel_url_longlat(lonmin, latmin, lonmax, latmax, start=None, end=None, n_days_before_date=None, date=None,
-                         save_img=False, output_dir="", img_name=None, output_img=True):
+                         save_img=False, output_dir="", img_name=None, output_img=True, output_url=False):
     if n_days_before_date != None:
         if date == None:
             end = datetime.datetime.now()
@@ -207,6 +207,10 @@ def sentinel_url_longlat(lonmin, latmin, lonmax, latmax, start=None, end=None, n
         img_path = os.path.join(output_dir, img_name)
         with open(img_path, 'wb') as f:
             f.write(response.content)
-    if output_img:
+    if output_img and output_url:
+        return img, url
+    elif (output_img == True) and (output_url == False):
         return img
+    elif (output_img == False) and (output_url == True):
+        return url
     return
