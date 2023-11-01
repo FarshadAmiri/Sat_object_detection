@@ -287,34 +287,6 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
         sahi_scaled_down_image = sahi_result.get("scaled_down_image")
         # image = transform(image) 
 
-        # if bboxes.dim() == 1:
-        #     result[img[0]] = dict()
-        #     if inference_mode == "single_image":
-        #         result["n_obj"] = 0
-        #         result["bboxes"] = bboxes
-        #         result["scores"] = scores
-        #         result["original_image"] = sahi_scaled_down_image
-        #         if bbox_coord_wgs84 != None:
-        #             result["ships_long_lat"] = []
-        #             result["ships_lengths"] = []
-        #             result["ships_bbox_dimensions"] = []
-        #     else:
-        #         result[img[0]]["n_obj"] = 0
-        #         result[img[0]]["bboxes"] = bboxes
-        #         result[img[0]]["scores"] = scores
-        #         result[img[0]]["original_image"] = sahi_scaled_down_image
-        #     if bbox_coord_wgs84 != None:
-        #         if type(bbox_coord_wgs84) == dict:
-        #             if bbox_coord_wgs84.get(img[0]) != None:
-        #                 result[img[0]]["ships_long_lat"] = []
-        #                 result[img[0]]["ships_lengths"] = []
-        #                 result[img[0]]["ships_bbox_dimensions"] = []
-        #             elif type(bbox_coord_wgs84) == list:
-        #                 result["ships_long_lat"] = []
-        #                 result["ships_lengths"] = []
-        #                 result["ships_bbox_dimensions"] = []
-        #     continue
-        
         # Perform Non-Max Suppression
         if n_obj_sahi == 0:
             bboxes_nms = np.array([], dtype=np.float32)
