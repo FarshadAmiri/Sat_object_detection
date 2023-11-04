@@ -262,3 +262,4 @@ def sentinel_query(coords, start=None, end=None, n_days_before_date=None, date=N
     if output_img:
         return img
     return
+
