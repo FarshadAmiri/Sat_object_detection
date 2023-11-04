@@ -114,7 +114,8 @@ def bbox_divide(bbox, lon_step=0.05, lat_step=0.05):
     return bboxes
 
 
-def xyz2bbox(x,y,z):   
+def xyz2bbox(xyz_coords):
+    x, y, z = xyz_coords
     lonmin = x / math.pow(2.0, z) * 360.0 - 180
     lonmax = (x+1) / math.pow(2.0, z) * 360.0 - 180
     n1 = math.pi - (2.0 * math.pi * y) / math.pow(2.0, z)
