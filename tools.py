@@ -125,93 +125,10 @@ def xyz2bbox(x,y,z):
     return coords
 
 
-def sentinel_url_xyz(x, y, z, start=None, end=None, n_days_before_date=None, date=None, save_img=False,
-                     output_dir="", img_name=None, output_img=True):
-    if n_days_before_date != None:
-        if date == None:
-            end = datetime.datetime.now()
-            start = end - datetime.timedelta(days=n_days_before_date)
-        elif type(date) == datetime.datetime:
-            end = date
-            start = end - datetime.timedelta(days=n_days_before_date)
-        else:
-            end_year, end_month, end_day = end.split('/')
-            end = datetime.date(end_year, end_month, end_day)
-            start = end - datetime.timedelta(days=n_days_before_date)
-
-    if type(start)!= datetime.datetime:
-        start_year, start_month, start_day = start.split('/')
-        start = datetime.date(start_year, start_month, start_day)
-    if type(end) != datetime.datetime:
-        end = date
-        start = end - datetime.timedelta(days=n_days_before_date)
-
-    start_formatted = datetime.datetime.strftime(start, "%Y-%m-%dT%H:%M:%SZ")
-    end_formatted = datetime.datetime.strftime(end, "%Y-%m-%dT%H:%M:%SZ")
-
-    lonmin, latmin, lonmax, latmax = xyz2bbox(x,y,z)
-    url = fr"http://services.sentinel-hub.com/v1/wms/cd280189-7c51-45a6-ab05-f96a76067710?service=WMS&request=GetMap&layers=1_TRUE_COLOR&styles=&format=image%2Fpng&transparent=true&version=1.1.1&showlogo=false&additionalParams=%5Bobject%20Object%5D&name=Sentinel-2&height=256&width=256&errorTileUrl=%2Fimage-browser%2Fstatic%2Fmedia%2FbrokenImage.ca65e8ca.png&pane=activeLayer&maxcc=20&time={start_formatted}/{end_formatted}&srs=EPSG%3A4326&bbox={lonmin},{latmin},{lonmax},{latmax}"
-    
-    response = requests.get(url)
-    if output_img:
-        img = Image.open(BytesIO(response.content))
-    # Save the image
-    if save_img:
-        if img_name == None:
-            img_name = f"[{lonmin:.4f},{latmin:.4f},{lonmax:.4f},{latmax:.4f}]-{start_formatted.split('T')[0]}_{end_formatted.split('T')[0]}).jpg"
-        elif img_name.endswith((".jpg", ".jpeg", ".png", ".tif", ".tiff")) == False:
-            img_name = img_name + ".jpg"
-        img_path = os.path.join(output_dir, img_name)
-        with open(img_path, 'wb') as f:
-            f.write(response.content)
-    if output_img:
-        return img
-    return
-
-
-def sentinel_url_longlat(bbox_coords, start=None, end=None, n_days_before_date=None, date=None,
-                         save_img=False, output_dir="", img_name=None, output_img=True, output_url=False):
-    if n_days_before_date != None:
-        if date == None:
-            end = datetime.datetime.now()
-            start = end - datetime.timedelta(days=n_days_before_date)
-        elif type(date) == datetime.datetime:
-            end = date
-            start = end - datetime.timedelta(days=n_days_before_date)
-        else:
-            end_year, end_month, end_day = end.split('/')
-            end = datetime.date(end_year, end_month, end_day)
-            start = end - datetime.timedelta(days=n_days_before_date)
-
-    if type(start)!= datetime.datetime:
-        start_year, start_month, start_day = start.split('/')
-        start = datetime.date(start_year, start_month, start_day)
-    if type(end) != datetime.datetime:
-        end = date
-        start = end - datetime.timedelta(days=n_days_before_date)
-
-    start_formatted = datetime.datetime.strftime(start, "%Y-%m-%dT%H:%M:%SZ")
-    end_formatted = datetime.datetime.strftime(end, "%Y-%m-%dT%H:%M:%SZ")
-
+def bbox2xyz(bbox_coords):
     lonmin, latmin, lonmax, latmax = bbox_coords
-    url = fr"http://services.sentinel-hub.com/v1/wms/cd280189-7c51-45a6-ab05-f96a76067710?service=WMS&request=GetMap&layers=1_TRUE_COLOR&styles=&format=image%2Fpng&transparent=true&version=1.1.1&showlogo=false&additionalParams=%5Bobject%20Object%5D&name=Sentinel-2&height=256&width=256&errorTileUrl=%2Fimage-browser%2Fstatic%2Fmedia%2FbrokenImage.ca65e8ca.png&pane=activeLayer&maxcc=20&time={start_formatted}/{end_formatted}&srs=EPSG%3A4326&bbox={lonmin},{latmin},{lonmax},{latmax}"
-    
-    response = requests.get(url)
-    if output_img:
-        img = Image.open(BytesIO(response.content))
-    # Save the image
-    if save_img:
-        if img_name == None:
-            img_name = f"[{lonmin:.4f},{latmin:.4f},{lonmax:.4f},{latmax:.4f}]-{start_formatted.split('T')[0]}_{end_formatted.split('T')[0]}).jpg"
-        elif img_name.endswith((".jpg", ".jpeg", ".png", ".tif", ".tiff")) == False:
-            img_name = img_name + ".jpg"
-        img_path = os.path.join(output_dir, img_name)
-        with open(img_path, 'wb') as f:
-            f.write(response.content)
-    if output_img and output_url:
-        return img, url
-    elif (output_img == True) and (output_url == False):
-        return img
-    elif (output_img == False) and (output_url == True):
-        return url
-    return
+    z = math.log(360.0 / (lonmax - lonmin), 2.0)
+    x = math.pow(2.0, z) * (lonmin + 180) / 360
+    a = math.tan(math.pi * latmax / 180)
+    y = (math.pi - math.log(a + math.sqrt(a**2 + 1), math.e)) * math.pow(2.0, z) / (2*math.pi)
+    return x, y, int(z)

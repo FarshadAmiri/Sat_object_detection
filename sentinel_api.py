@@ -2,7 +2,9 @@ import logging
 from sentinelhub import MimeType, CRS, BBox, DataCollection, bbox_to_dimensions, SHConfig, SentinelHubRequest
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
-from tools import bbox_geometry_calculator, bbox_divide
+from tools import bbox_geometry_calculator, bbox_divide, xyz2bbox, bbox2xyz
+import datetime, requests
+from io import BytesIO
 import numpy as np
 from PIL import Image
 import os
@@ -208,3 +210,55 @@ def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollec
         concat_image.save(os.path.join(concat_image_dir, concat_image_name))
         print("concatenated image saved in {}".format(concat_image_dir))
     return concat_image
+
+
+
+def sentinel_query(coords, start=None, end=None, n_days_before_date=None, date=None, save_img=False,
+                     output_dir="", img_name=None, output_img=True):
+    if n_days_before_date != None:
+        if date == None:
+            end = datetime.datetime.now()
+            start = end - datetime.timedelta(days=n_days_before_date)
+        elif type(date) == datetime.datetime:
+            end = date
+            start = end - datetime.timedelta(days=n_days_before_date)
+        else:
+            end_year, end_month, end_day = end.split('/')
+            end = datetime.date(end_year, end_month, end_day)
+            start = end - datetime.timedelta(days=n_days_before_date)
+
+    if type(start)!= datetime.datetime:
+        start_year, start_month, start_day = start.split('/')
+        start = datetime.date(start_year, start_month, start_day)
+    if type(end) != datetime.datetime:
+        end = date
+        start = end - datetime.timedelta(days=n_days_before_date)
+
+    start_formatted = datetime.datetime.strftime(start, "%Y-%m-%dT%H:%M:%SZ")
+    end_formatted = datetime.datetime.strftime(end, "%Y-%m-%dT%H:%M:%SZ")
+
+    if len(coords) == 3:
+        x, y, z = coords
+        lonmin, latmin, lonmax, latmax = xyz2bbox(x,y,z)
+    elif len(coords) == 4:
+        lonmin, latmin, lonmax, latmax = coords
+    else:
+        raise ValueError("coords must be either 3 or 4 elements - (x,y,z) or (lonmin, latmin, lonmax, latmax), in form of list or tuple")
+    
+    url = fr"http://services.sentinel-hub.com/v1/wms/cd280189-7c51-45a6-ab05-f96a76067710?service=WMS&request=GetMap&layers=1_TRUE_COLOR&styles=&format=image%2Fpng&transparent=true&version=1.1.1&showlogo=false&additionalParams=%5Bobject%20Object%5D&name=Sentinel-2&height=256&width=256&errorTileUrl=%2Fimage-browser%2Fstatic%2Fmedia%2FbrokenImage.ca65e8ca.png&pane=activeLayer&maxcc=20&time={start_formatted}/{end_formatted}&srs=EPSG%3A4326&bbox={lonmin},{latmin},{lonmax},{latmax}"
+    
+    response = requests.get(url)
+    if output_img:
+        img = Image.open(BytesIO(response.content))
+    # Save the image
+    if save_img:
+        if img_name == None:
+            img_name = f"[{lonmin:.4f},{latmin:.4f},{lonmax:.4f},{latmax:.4f}]-{start_formatted.split('T')[0]}_{end_formatted.split('T')[0]}).jpg"
+        elif img_name.endswith((".jpg", ".jpeg", ".png", ".tif", ".tiff")) == False:
+            img_name = img_name + ".jpg"
+        img_path = os.path.join(output_dir, img_name)
+        with open(img_path, 'wb') as f:
+            f.write(response.content)
+    if output_img:
+        return img
+    return
