@@ -392,6 +392,16 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
         txt_dir = path.join(output_dir, 'inference_config.txt')
         with open(txt_dir, 'w') as f:
             f.write(f"""model_or_model_path= {model_or_model_path}\nmodel_input_dim={model_input_dim}\ndevice={device}\n--------------\nconfidence_threshold={confidence_threshold}\nnms_iou_threshold={nms_iou_threshold}\nsahi_overlap_ratio={sahi_overlap_ratio}\nscale_down_factor={scale_down_factor}\nadaptive_scale_down_parameters = {adaptive_scale_down_parameters}\n--------------\nannotation_font={annotation_font}\nannotation_font_size={annotation_font_size}\nannotation_bbox_width={annotation_bbox_width}""")
-
+    
+    ships_data = dict()
+    for i in range(result["n_obj"]):
+        ships_data[i + 1] = dict()
+        ships_data[i + 1]["long_lat"] = result["ships_long_lat"][i]
+        ships_data[i + 1]["length"] = result["ships_lengths"][i]
+        ships_data[i + 1]["confidence"] = result["scores"][i]
+        # ships_data[i]["type"] = result["ships_types"][i]
+        # ships_data[i]["awake"] = result["ships_awake"][i]
+        # ships_data[i]["submarine"] = result["is_submarine"][i]
+    result["ships_data"] = ships_data
     del model
     return result

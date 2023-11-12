@@ -212,9 +212,8 @@ def sentinel_territory(bbox_coords, timeline, config, data_collection=DataCollec
     return concat_image
 
 
-
-def sentinel_query(coords, start=None, end=None, n_days_before_date=None, date=None, save_img=False,
-                     output_dir="", img_name=None, output_img=False, output_url=False):
+def sentinel_query(coords, start=None, end=None, n_days_before_date=None, date=None, save_img=False, output_dir="",
+                   img_name=None, output_img=False, output_url=False, output_timestamp=False, return_timestamp_only=False):
     if n_days_before_date != None:
         if date == None:
             end = datetime.datetime.now()
@@ -236,7 +235,11 @@ def sentinel_query(coords, start=None, end=None, n_days_before_date=None, date=N
 
     start_formatted = datetime.datetime.strftime(start, "%Y-%m-%dT%H:%M:%SZ")
     end_formatted = datetime.datetime.strftime(end, "%Y-%m-%dT%H:%M:%SZ")
+    timestamp = f"{start_formatted.split('T')[0]}_{end_formatted.split('T')[0]}"
 
+    if return_timestamp_only:
+        return timestamp
+    
     if len(coords) == 3:
         lonmin, latmin, lonmax, latmax = xyz2bbox(coords)
     elif len(coords) == 4:
@@ -249,18 +252,24 @@ def sentinel_query(coords, start=None, end=None, n_days_before_date=None, date=N
     response = requests.get(url)
     if output_img:
         img = Image.open(BytesIO(response.content))
+
+    result = []
     # Save the image
     if save_img:
         if img_name == None:
-            img_name = f"[{lonmin:.4f},{latmin:.4f},{lonmax:.4f},{latmax:.4f}]-{start_formatted.split('T')[0]}_{end_formatted.split('T')[0]}).jpg"
+            img_name = f"[{lonmin:.4f},{latmin:.4f},{lonmax:.4f},{latmax:.4f}]-{timestamp}).jpg"
         elif img_name.endswith((".jpg", ".jpeg", ".png", ".tif", ".tiff")) == False:
             img_name = img_name + ".jpg"
         img_path = os.path.join(output_dir, img_name)
         with open(img_path, 'wb') as f:
             f.write(response.content)
-    if output_img and output_url==False:
-        return img
-    elif output_img and output_url:
-        return img, url
-    return
+
+    if output_img:
+        result.append(img)
+    if output_url:
+        result.append(url)
+    if output_timestamp:
+        result.append(timestamp)
+    
+    return result
 
