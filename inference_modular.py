@@ -338,7 +338,7 @@ def ship_detection(images, model_or_model_path='models/best_model.pth', bbox_coo
                 
                 ship_longitude = (((bbox_x1 + bbox_x2) * (lon2 - lon1)) / (2 * w_resized)) + lon1
                 ship_longitude = round(ship_longitude, 12)
-                ship_latitude = (((bbox_y1 + bbox_y2) * (lat2 - lat1)) / (2 * h_resized)) + lat1
+                ship_latitude = lat2 - (((bbox_y1 + bbox_y2) * (lat2 - lat1)) / (2 * h_resized))
                 ship_latitude = round(ship_latitude, 12)
                 ships_coord.append((ship_longitude, ship_latitude))
 
